@@ -1,1 +1,7 @@
 language: rust
+
+install:
+  - wget http://mirrors.kernel.org/ubuntu/pool/universe/libs/libsodium/libsodium13_1.0.1-1_amd64.deb
+  - wget http://mirrors.kernel.org/ubuntu/pool/universe/libs/libsodium/libsodium-dev_1.0.1-1_amd64.deb
+  - sudo dpkg -i libsodium13_1.0.1-1_amd64.deb
+  - sudo dpkg -i libsodium-dev_1.0.1-1_amd64.deb
