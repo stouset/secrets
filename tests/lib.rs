@@ -77,6 +77,7 @@ fn test_secret_slice() {
     let s1 = Secret::new(&mut [100, 101]);
     let s2 = s1.slice(0, 0);
     let s3 = s1.slice(1, 1);
+    let s4 = s1.slice(0, 1);
 
     s2.read(|slice| {
         assert!(slice == &[100])
@@ -85,6 +86,8 @@ fn test_secret_slice() {
     s3.read(|slice| {
         assert!(slice == &[101])
     });
+
+    assert!(s4 == s1);
 }
 
 #[test]
