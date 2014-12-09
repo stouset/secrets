@@ -105,15 +105,6 @@ impl Secret {
         slice
     }
 
-    pub fn split(&self, at: uint) -> (Secret, Secret) {
-        assert!(at <= self.len);
-
-        (
-            self.slice(0,  at       - 1),
-            self.slice(at, self.len - 1),
-        )
-    }
-
     fn equal(&self, other: &Secret) -> bool {
         // short circuit the test if we're pointing to the same
         // memory, otherwise we'd nest calls to `read`.

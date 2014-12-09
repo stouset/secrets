@@ -94,17 +94,3 @@ fn test_secret_slice_overflow() {
 
     secret.slice(256, 256);
 }
-
-#[test]
-fn test_secret_split() {
-    let s1       = Secret::new(&mut [47, 41, 210, 0, 0, 1]);
-    let (s2, s3) = s1.split(2);
-
-    s2.read(|slice| {
-        assert!(slice == &[47, 41])
-    });
-
-    s3.read(|slice| {
-        assert!(slice == &[210, 0, 0, 1])
-    })
-}
