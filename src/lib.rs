@@ -84,8 +84,8 @@ impl Secret {
     }
 
     pub fn slice(&self, from: uint, to: uint) -> Secret {
-        assert!(from <= to);
-        assert!(to   <  self.len);
+        assert!(from <= to,       "negative-length slice");
+        assert!(to   <  self.len, "index out of bounds");
 
         let len   = to - from + 1;
         let slice = Secret::empty(len);

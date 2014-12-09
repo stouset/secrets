@@ -19,7 +19,7 @@ fn test_create_secret_from_bytes() {
     let secret = Secret::new(bytes);
 
     secret.read(|slice| {
-        assert!(slice == &[0, 1, 2, 3])
+        assert_eq!(slice, [0, 1, 2, 3]);
     });
 }
 
@@ -29,7 +29,7 @@ fn test_create_secret_clears_input_bytes() {
 
     Secret::new(bytes);
 
-    assert!(bytes.iter().all (|x| { *x == 0 }))
+    assert_eq!(bytes.as_slice(), [0, 0, 0, 0]);
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn test_secret_write() {
     secret.read(|slice| {
         // 0xd0 is the value of uninitialized memory returned by
         // sodium_malloc
-        assert!(slice == &[1, 0xd0]);
+        assert_eq!(slice, [1, 0xd0]);
     });
 }
 
@@ -80,20 +80,24 @@ fn test_secret_slice() {
     let s4 = s1.slice(0, 1);
 
     s2.read(|slice| {
-        assert!(slice == &[100])
+        assert_eq!(slice, [100]);
     });
 
     s3.read(|slice| {
-        assert!(slice == &[101])
+        assert_eq!(slice, [101]);
     });
 
-    assert!(s4 == s1);
+    assert!(s1 == s4);
 }
 
 #[test]
-#[should_fail]
+#[should_fail(expected = "out of bounds")]
 fn test_secret_slice_overflow() {
-    let secret = Secret::empty(256);
+    Secret::empty(256).slice(256, 256);
+}
 
-    secret.slice(256, 256);
+#[test]
+#[should_fail(expected = "negative-length slice")]
+fn test_secret_slice_negative_length() {
+    Secret::empty(95).slice(51, 50);
 }
