@@ -1,3 +1,5 @@
+//! A type for securely storing cryptographic secrets.
+
 #![crate_name = "secrets"]
 #![crate_type = "lib"]
 
