@@ -85,7 +85,7 @@ impl Secret {
 
     pub fn slice(&self, from: uint, to: uint) -> Secret {
         assert!(from <= to);
-        assert!(to   <= self.len);
+        assert!(to   <  self.len);
 
         let len   = to - from + 1;
         let slice = Secret::empty(len);

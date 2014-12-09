@@ -88,6 +88,14 @@ fn test_secret_slice() {
 }
 
 #[test]
+#[should_fail]
+fn test_secret_slice_overflow() {
+    let secret = Secret::empty(256);
+
+    secret.slice(256, 256);
+}
+
+#[test]
 fn test_secret_split() {
     let s1       = Secret::new(&mut [47, 41, 210, 0, 0, 1]);
     let (s2, s3) = s1.split(2);
