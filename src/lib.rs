@@ -47,12 +47,12 @@ impl Secret {
         let len    = data.len();
         let secret = Secret::empty(len);
 
-        unsafe {
-            secret.ptr.borrow_mut().write(|ptr| {
+        secret.ptr.borrow_mut().write(|ptr| {
+            unsafe {
                 ptr::copy_nonoverlapping_memory(ptr, data.as_ptr() as *const c_void, len);
                 ptr::set_memory(data.as_mut_ptr(), 0, len);
-            });
-        }
+            }
+        });
 
         secret
     }
@@ -62,25 +62,25 @@ impl Secret {
     }
 
     pub fn read<T>(&self, reader: |&[u8]| ->T) -> T {
-        unsafe {
-            self.ptr.borrow_mut().read(|ptr| {
+        self.ptr.borrow_mut().read(|ptr| {
+            unsafe {
                 let ptr   = ptr as *const u8;
                 let slice = slice::from_raw_buf(&ptr, self.len);
 
                 reader(slice)
-            })
-        }
+            }
+        })
     }
 
     pub fn write<T>(&mut self, writer: |&mut [u8]| -> T) -> T {
-        unsafe {
-            self.ptr.borrow_mut().write(|ptr| {
+        self.ptr.borrow_mut().write(|ptr| {
+            unsafe {
                 let ptr   = ptr as *mut u8;
                 let slice = slice::from_raw_mut_buf(&ptr, self.len);
 
                 writer(slice)
-            })
-        }
+            }
+        })
     }
 
     pub fn slice(&self, from: uint, to: uint) -> Secret {
@@ -90,17 +90,17 @@ impl Secret {
         let len   = to - from + 1;
         let slice = Secret::empty(len);
 
-        unsafe {
-            self.ptr.borrow_mut().read(|src| {
-                slice.ptr.borrow_mut().write(|dst| {
+        self.ptr.borrow_mut().read(|src| {
+            slice.ptr.borrow_mut().write(|dst| {
+                unsafe {
                     ptr::copy_nonoverlapping_memory(
                         dst,
                         src.offset(from as int),
                         len
                     );
-                });
+                }
             });
-        }
+        });
 
         slice
     }
@@ -160,20 +160,20 @@ impl ProtectedPointer {
         init();
 
         ProtectedPointer {
-            ptr:  unsafe { alloc(len) },
+            ptr:  alloc(len),
             prot: Protection::NoAccess,
         }
     }
 
-    pub unsafe fn read<T>(&mut self, reader: |*const c_void| -> T) -> T {
+    pub fn read<T>(&mut self, reader: |*const c_void| -> T) -> T {
         self.unlock(Protection::ReadOnly, |ptr| { reader(ptr as *const c_void) })
     }
 
-    pub unsafe fn write<T>(&mut self, writer: |*mut c_void| -> T) -> T {
+    pub fn write<T>(&mut self, writer: |*mut c_void| -> T) -> T {
         self.unlock(Protection::ReadWrite, |ptr| { writer(ptr) })
     }
 
-    unsafe fn unlock<T>(&mut self, prot: Protection, callback: |*mut c_void| -> T) -> T {
+    fn unlock<T>(&mut self, prot: Protection, callback: |*mut c_void| -> T) -> T {
         let _prot = self.prot;
 
         finally::try_finally(
@@ -184,7 +184,7 @@ impl ProtectedPointer {
     }
 
     fn protect(&mut self, prot: Protection) {
-        unsafe { protect(self.ptr as *const c_void, prot) };
+        unsafe { protect(self.ptr as *const c_void, prot) }
         self.prot = prot;
     }
 }
@@ -197,17 +197,23 @@ fn init() {
     });
 }
 
-unsafe fn alloc(len: size_t) -> *mut c_void {
-    let ptr = sodium_malloc(len as size_t);
-    assert!(!ptr.is_null());
+fn alloc(len: size_t) -> *mut c_void {
+    let ptr : *mut c_void;
 
-    sodium_mprotect_noaccess(ptr as *const c_void);
+    unsafe {
+        ptr = sodium_malloc(len as size_t);
+        assert!(!ptr.is_null());
+
+        sodium_mprotect_noaccess(ptr as *const c_void);
+    }
 
     ptr
 }
 
-unsafe fn free(ptr: *mut c_void) {
-    sodium_free(ptr);
+fn free(ptr: *mut c_void) {
+    assert!(!ptr.is_null());
+
+    unsafe { sodium_free(ptr) };
 }
 
 unsafe fn protect(ptr: *const c_void, prot: Protection) {
@@ -219,5 +225,5 @@ unsafe fn protect(ptr: *const c_void, prot: Protection) {
 }
 
 impl Drop for ProtectedPointer {
-    fn drop(&mut self) { unsafe { free(self.ptr) } }
+    fn drop(&mut self) { free(self.ptr) }
 }
