@@ -173,7 +173,7 @@ impl ProtectedPointer {
         self.unlock(Protection::ReadWrite, |ptr| { writer(ptr) })
     }
 
-    fn unlock<T>(&mut self, prot: Protection, callback: |*mut c_void| -> T) -> T {
+    unsafe fn unlock<T>(&mut self, prot: Protection, callback: |*mut c_void| -> T) -> T {
         let _prot = self.prot;
 
         finally::try_finally(
