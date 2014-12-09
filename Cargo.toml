@@ -1,0 +1,10 @@
+[package]
+
+name    = "secrets"
+version = "0.0.1"
+license = "MIT"
+
+authors     = ["Stephen Touset <stephen@touset.org>"]
+description = "Protected-access memory for cryptographic secrets"
+
+
