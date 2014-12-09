@@ -106,6 +106,8 @@ impl Secret {
     }
 
     pub fn split(&self, at: uint) -> (Secret, Secret) {
+        assert!(at <= self.len);
+
         (
             self.slice(0,  at       - 1),
             self.slice(at, self.len - 1),
