@@ -203,7 +203,13 @@ fn alloc(len: size_t) -> *mut c_void {
 fn free(ptr: *mut c_void) {
     assert!(!ptr.is_null());
 
-    unsafe { sodium_free(ptr) };
+    unsafe {
+        // FIXME: workaround for a bug in libsodium 1.0.1, to be fixed
+        // in next release
+        sodium_mprotect_readwrite(ptr as *const c_void);
+
+        sodium_free(ptr)
+    };
 }
 
 unsafe fn protect(ptr: *const c_void, prot: Protection) {
