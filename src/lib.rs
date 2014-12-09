@@ -152,7 +152,6 @@ enum Protection {
 
 struct ProtectedPointer {
     ptr:  *mut c_void,
-    prot: Protection,
 }
 
 impl ProtectedPointer {
@@ -160,8 +159,7 @@ impl ProtectedPointer {
         init();
 
         ProtectedPointer {
-            ptr:  alloc(len),
-            prot: Protection::NoAccess,
+            ptr: alloc(len),
         }
     }
 
@@ -174,18 +172,15 @@ impl ProtectedPointer {
     }
 
     fn unlock<T>(&mut self, prot: Protection, callback: |*mut c_void| -> T) -> T {
-        let _prot = self.prot;
-
         finally::try_finally(
             self, callback,
             |pp, cb| { pp.protect(prot); cb(pp.ptr) },
-            |pp    | { pp.protect(_prot); }
+            |pp    | { pp.protect(Protection::NoAccess); }
         )
     }
 
     fn protect(&mut self, prot: Protection) {
         unsafe { protect(self.ptr as *const c_void, prot) }
-        self.prot = prot;
     }
 }
 
