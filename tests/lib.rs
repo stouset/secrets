@@ -18,9 +18,7 @@ fn test_create_secret_from_bytes() {
     let bytes  = &mut [0, 1, 2, 3];
     let secret = Secret::new(bytes);
 
-    secret.read(|slice| {
-        assert_eq!(slice, [0, 1, 2, 3]);
-    });
+    assert!(secret.read() == [0, 1, 2, 3]);
 }
 
 #[test]
@@ -29,7 +27,7 @@ fn test_create_secret_clears_input_bytes() {
 
     Secret::new(bytes);
 
-    assert_eq!(bytes.as_slice(), [0, 0, 0, 0]);
+    assert_eq!(bytes[], [0, 0, 0, 0]);
 }
 
 #[test]
@@ -60,16 +58,10 @@ fn test_secret_inequality() {
 #[test]
 fn test_secret_write() {
     let mut secret = Secret::empty(2);
+    let mut slice  = secret.write();
 
-    secret.write(|slice| {
-        slice::bytes::copy_memory(slice, &[1]);
-    });
-
-    secret.read(|slice| {
-        // 0xd0 is the value of uninitialized memory returned by
-        // sodium_malloc
-        assert_eq!(slice, [1, 0xd0]);
-    });
+    slice::bytes::copy_memory(&mut *slice, &[42]);
+    assert!(slice == [42, 0xd0]);
 }
 
 #[test]
@@ -79,13 +71,8 @@ fn test_secret_slice() {
     let s3 = s1.slice(1, 1);
     let s4 = s1.slice(0, 1);
 
-    s2.read(|slice| {
-        assert_eq!(slice, [100]);
-    });
-
-    s3.read(|slice| {
-        assert_eq!(slice, [101]);
-    });
+    assert_eq!(&*s2.read(), [100]);
+    assert_eq!(&*s3.read(), [101]);
 
     assert!(s1 == s4);
 }
