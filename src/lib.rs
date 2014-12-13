@@ -5,7 +5,7 @@
 
 #![feature(unsafe_destructor)]
 
-//#![warn(missing_docs)]
+#![warn(missing_docs)]
 #![warn(non_upper_case_globals)]
 #![warn(non_camel_case_types)]
 #![warn(unused_qualifications)]
@@ -62,9 +62,9 @@ pub struct Secret {
     len: uint,
 }
 
-// A value that dereferences (mutably and immutably) to a slice
-// pointing at secret data. When the `SecretSlice` is dropped, it
-// ensures that the memory pointed to is re-mprotected.
+/// A value that dereferences (mutably and immutably) to a slice
+/// pointing at secret data. When the `SecretSlice` is dropped, it
+/// ensures that the memory pointed to is re-mprotected.
 pub struct SecretSlice<'a> {
     /// A reference to the `SecretPointer` containing the real pointer
     /// we're using for the data behind the slice. This is held onto
