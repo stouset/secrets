@@ -7,7 +7,8 @@ license = "MIT"
 authors     = ["Stephen Touset <stephen@touset.org>"]
 description = "Protected-access memory for cryptographic secrets"
 
-homepage   = "https://github.com/stouset/secrets"
-repository = "https://github.com/stouset/secrets"
+homepage      = "https://github.com/stouset/secrets"
+repository    = "https://github.com/stouset/secrets"
+documentation = "https://stouset.github.io/secrets"
 
 keywords = [ "crypto", "cryptography" ]
