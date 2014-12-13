@@ -160,6 +160,11 @@ impl Secret {
     /// Returns a `SecretSlice` that derefs into a slice from which the
     /// contents of the Secret can be read from or written to.
     ///
+    /// Take care when writing in to a Secret using this mechanism. It
+    /// is not possible for this library to manage the lifetime and
+    /// page protection of the memory the secret data written was read
+    /// from.
+    ///
     /// ```rust
     /// let mut secret = secrets::Secret::empty(1);
     ///
