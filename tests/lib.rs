@@ -56,6 +56,14 @@ fn test_secret_inequality() {
 }
 
 #[test]
+fn test_secret_clone() {
+    let s1 = Secret::new(&mut [0, 1, 2, 3, 4, 5]);
+    let s2 = s1.clone();
+
+    assert!(s1 == s2);
+}
+
+#[test]
 fn test_secret_add() {
     let s1 = Secret::new(&mut [1, 2]);
     let s2 = Secret::new(&mut [3]);
