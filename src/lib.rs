@@ -220,6 +220,27 @@ impl PartialEq for Secret {
 impl Eq for Secret {
 }
 
+impl Clone for Secret {
+    /// Clones the secret, creating a complete independent copy of its
+    /// contents.
+    fn clone(&self) -> Secret {
+        let mut secret = Secret::empty(self.len);
+
+        unsafe {
+            let     src = self.read();
+            let mut dst = secret.write();
+
+            ptr::copy_nonoverlapping_memory(
+                dst.as_mut_ptr(),
+                src.as_ptr(),
+                self.len
+            )
+        }
+
+        secret
+    }
+}
+
 impl Add<Secret, Secret> for Secret {
     /// Appends another secret to the current secret, returning a new
     /// one with the contents of both.
