@@ -480,7 +480,7 @@ fn test_write_protection_reset() {
 fn test_no_switching_read_to_write() {
     let ptr = SecretPointer::alloc(12);
 
-    (|| {
+    (|&mut:| {
         ptr.retain(Protection::ReadOnly);
         ptr.retain(Protection::ReadWrite);
     }).finally(|| {
@@ -493,7 +493,7 @@ fn test_no_switching_read_to_write() {
 fn test_no_switching_write_to_read() {
     let ptr = SecretPointer::alloc(90);
 
-    (|| {
+    (|&mut:| {
         ptr.retain(Protection::ReadWrite);
         ptr.retain(Protection::ReadOnly);
     }).finally(|| {
