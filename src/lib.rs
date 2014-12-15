@@ -220,6 +220,34 @@ impl PartialEq for Secret {
 impl Eq for Secret {
 }
 
+impl Add<Secret, Secret> for Secret {
+    /// Appends another secret to the current secret, returning a new
+    /// one with the contents of both.
+    fn add(&self, other: &Secret) -> Secret {
+        let mut secret = Secret::empty(self.len + other.len);
+
+        unsafe {
+            let     src1 = self  .read();
+            let     src2 = other .read();
+            let mut dst  = secret.write();
+
+            ptr::copy_nonoverlapping_memory(
+                dst .as_mut_ptr(),
+                src1.as_ptr(),
+                self.len
+            );
+
+            ptr::copy_nonoverlapping_memory(
+                dst  .as_mut_ptr().offset(self.len as int),
+                src2 .as_ptr(),
+                other.len
+            );
+        }
+
+        secret
+    }
+}
+
 impl SecretPointer {
     /// Allocates memory for a pointer of the given length. When this
     /// function returns, this memory is `mprotect`ed such that it
