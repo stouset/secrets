@@ -56,6 +56,15 @@ fn test_secret_inequality() {
 }
 
 #[test]
+fn test_secret_add() {
+    let s1 = Secret::new(&mut [1, 2]);
+    let s2 = Secret::new(&mut [3]);
+    let s3 = Secret::new(&mut [1, 2, 3]);
+
+    assert!(s1 + s2 == s3);
+}
+
+#[test]
 fn test_secret_write() {
     let mut secret = Secret::empty(2);
     let mut slice  = secret.write();
