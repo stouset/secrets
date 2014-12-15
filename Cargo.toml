@@ -10,5 +10,6 @@ description = "Protected-access memory for cryptographic secrets"
 homepage      = "https://github.com/stouset/secrets"
 repository    = "https://github.com/stouset/secrets"
 documentation = "https://stouset.github.io/secrets"
+readme        = "README.md"
 
 keywords = [ "crypto", "cryptography" ]
