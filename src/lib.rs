@@ -25,9 +25,9 @@ extern {
     fn sodium_malloc(size: size_t) -> *mut c_void;
     fn sodium_free(ptr: *mut c_void);
 
-    fn sodium_mprotect_noaccess(ptr: *const c_void);
-    fn sodium_mprotect_readonly(ptr: *const c_void);
-    fn sodium_mprotect_readwrite(ptr: *const c_void);
+    fn sodium_mprotect_noaccess(ptr: *const c_void)  -> c_int;
+    fn sodium_mprotect_readonly(ptr: *const c_void)  -> c_int;
+    fn sodium_mprotect_readwrite(ptr: *const c_void) -> c_int;
 
     fn sodium_memcmp(b1: *const c_void, b2: *const c_void, size: size_t) -> c_int;
 }
@@ -482,11 +482,13 @@ fn free(ptr: *mut c_void) {
 
 /// Changes the protection level on the provided pointer.
 unsafe fn protect(ptr: *const c_void, prot: Protection) {
-    match prot {
+    let ret = match prot {
         Protection::NoAccess  => sodium_mprotect_noaccess(ptr),
         Protection::ReadOnly  => sodium_mprotect_readonly(ptr),
         Protection::ReadWrite => sodium_mprotect_readwrite(ptr),
-    }
+    };
+
+    assert!(ret == 0, "couldn't set memory protection to {}", prot);
 }
 
 #[test]
