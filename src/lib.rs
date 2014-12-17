@@ -244,7 +244,7 @@ impl Clone for Secret {
 impl Add<Secret, Secret> for Secret {
     /// Appends another secret to the current secret, returning a new
     /// one with the contents of both.
-    fn add(&self, other: &Secret) -> Secret {
+    fn add(self, other: Secret) -> Secret {
         let mut secret = Secret::empty(self.len + other.len);
 
         unsafe {
