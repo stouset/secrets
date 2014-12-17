@@ -14,6 +14,13 @@ fn test_create_empty_secret() {
 }
 
 #[test]
+fn test_create_null_secret() {
+    let secret = Secret::empty(0);
+
+    assert_eq!(secret.len(), 0);
+}
+
+#[test]
 fn test_create_secret_from_bytes() {
     let bytes  = &mut [0, 1, 2, 3];
     let secret = Secret::new(bytes);
