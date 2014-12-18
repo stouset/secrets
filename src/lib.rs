@@ -25,9 +25,9 @@ extern {
     fn sodium_malloc(size: size_t) -> *mut c_void;
     fn sodium_free(ptr: *mut c_void);
 
-    fn sodium_mprotect_noaccess(ptr: *const c_void);
-    fn sodium_mprotect_readonly(ptr: *const c_void);
-    fn sodium_mprotect_readwrite(ptr: *const c_void);
+    fn sodium_mprotect_noaccess(ptr: *const c_void)  -> c_int;
+    fn sodium_mprotect_readonly(ptr: *const c_void)  -> c_int;
+    fn sodium_mprotect_readwrite(ptr: *const c_void) -> c_int;
 
     fn sodium_memcmp(b1: *const c_void, b2: *const c_void, size: size_t) -> c_int;
 }
@@ -340,9 +340,7 @@ impl SecretPointer {
             panic!("secret is already unlocked for {}", current);
         }
 
-        unsafe {
-            protect(self.ptr as *const _, prot)
-        }
+        protect(self.ptr, prot);
 
         self.prot.set(prot);
     }
@@ -461,9 +459,9 @@ fn alloc(len: size_t) -> *mut c_void {
     unsafe {
         ptr = sodium_malloc(len as size_t);
         assert!(!ptr.is_null(), "memory for a secret couldn't be allocated");
-
-        sodium_mprotect_noaccess(ptr as *const _);
     }
+
+    protect(ptr, Protection::NoAccess);
 
     ptr
 }
@@ -482,11 +480,17 @@ fn free(ptr: *mut c_void) {
 }
 
 /// Changes the protection level on the provided pointer.
-unsafe fn protect(ptr: *const c_void, prot: Protection) {
-    match prot {
-        Protection::NoAccess  => sodium_mprotect_noaccess(ptr),
-        Protection::ReadOnly  => sodium_mprotect_readonly(ptr),
-        Protection::ReadWrite => sodium_mprotect_readwrite(ptr),
+fn protect(ptr: *mut c_void, prot: Protection) {
+    assert!(!ptr.is_null(), "tried to protect a null pointer");
+
+    unsafe {
+        let ret = match prot {
+            Protection::NoAccess  => sodium_mprotect_noaccess(ptr as *const c_void),
+            Protection::ReadOnly  => sodium_mprotect_readonly(ptr as *const c_void),
+            Protection::ReadWrite => sodium_mprotect_readwrite(ptr as *const c_void),
+        };
+
+        assert!(ret == 0, "couldn't set memory protection to {}", prot);
     }
 }
 
