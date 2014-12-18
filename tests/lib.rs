@@ -21,6 +21,13 @@ fn test_create_null_secret() {
 }
 
 #[test]
+fn test_create_zeroed_secret() {
+    let secret = Secret::zero(3);
+
+    assert!(secret.read() == [0, 0, 0]);
+}
+
+#[test]
 fn test_create_secret_from_bytes() {
     let bytes  = &mut [0, 1, 2, 3];
     let secret = Secret::new(bytes);
