@@ -29,6 +29,8 @@ extern {
     fn sodium_mprotect_readonly(ptr: *const c_void)  -> c_int;
     fn sodium_mprotect_readwrite(ptr: *const c_void) -> c_int;
 
+    fn sodium_memzero(ptr: *mut c_void, size: size_t);
+
     fn sodium_memcmp(b1: *const c_void, b2: *const c_void, size: size_t) -> c_int;
 }
 
@@ -102,9 +104,33 @@ impl Secret {
     /// ```
     pub fn empty(len: uint) -> Secret {
         Secret {
-            ptr:  SecretPointer::alloc(len as size_t),
-            len:  len,
+            ptr: SecretPointer::alloc(len as size_t),
+            len: len,
         }
+    }
+
+    /// Creates an empty secret capable of holding `len` bytes. The
+    /// secret is initialized with zeroes. Only use this if you
+    /// actually depend upon the zeroing of memory, as this is slower.
+    ///
+    /// ```rust
+    /// let secret = secrets::Secret::zero(4);
+    ///
+    /// assert!(secret.read() == [0, 0, 0, 0]);
+    /// ```
+    pub fn zero(len: uint) -> Secret {
+        let mut secret = Secret::empty(len);
+
+        unsafe {
+            let mut dst = secret.write();
+
+            zero(
+                dst.as_mut_ptr() as *mut c_void,
+                len              as size_t
+            );
+        }
+
+        secret
     }
 
     /// Creates a secret containing the given bytes. The byte slice
@@ -492,6 +518,10 @@ fn protect(ptr: *mut c_void, prot: Protection) {
 
         assert!(ret == 0, "couldn't set memory protection to {}", prot);
     }
+}
+
+unsafe fn zero(ptr: *mut c_void, len: size_t) {
+    sodium_memzero(ptr, len)
 }
 
 #[test]
