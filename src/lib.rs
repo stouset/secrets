@@ -185,13 +185,14 @@ impl Secret {
     /// let secret = secrets::Secret::new(&mut [255, 255, 255, 0]);
     ///
     /// assert!(secret.slice(0, 1) == secret.slice(1, 2));
-    /// assert!(secret.slice(0, 1) != secret.slice(2, 3));
+    /// assert!(secret.slice(0, 1) == secret.slice(2, 3));
+    /// assert!(secret.slice(0, 1) != secret.slice(3, 4));
     /// ```
     pub fn slice(&self, from: uint, to: uint) -> Secret {
         assert!(from <= to,       "negative-length slice");
-        assert!(to   <  self.len, "index out of bounds");
+        assert!(to   <= self.len, "index out of bounds");
 
-        let     len    = to - from + 1;
+        let     len    = to - from;
         let mut secret = Secret::empty(len);
 
         unsafe {

@@ -92,10 +92,10 @@ fn test_secret_write() {
 fn test_secret_slice() {
     let s1 = Secret::new(&mut [100, 101]);
     let s2 = s1.slice(0, 0);
-    let s3 = s1.slice(1, 1);
-    let s4 = s1.slice(0, 1);
+    let s3 = s1.slice(1, 2);
+    let s4 = s1.slice(0, 2);
 
-    assert_eq!(&*s2.read(), [100]);
+    assert_eq!(&*s2.read(), []);
     assert_eq!(&*s3.read(), [101]);
 
     assert!(s1 == s4);
@@ -104,7 +104,7 @@ fn test_secret_slice() {
 #[test]
 #[should_fail(expected = "out of bounds")]
 fn test_secret_slice_overflow() {
-    Secret::empty(256).slice(256, 256);
+    Secret::empty(256).slice(256, 257);
 }
 
 #[test]
