@@ -3,6 +3,7 @@
 #![crate_name = "secrets"]
 #![crate_type = "lib"]
 
+#![feature(globs)]
 #![feature(unsafe_destructor)]
 
 #![warn(missing_docs)]
@@ -12,13 +13,13 @@
 
 extern crate libc;
 
-use std::{cell, ptr, slice, uint};
-use libc::{c_void, size_t};
+use secret_pointer::SecretPointer;
 
-#[cfg(test)]
-use std::finally::Finally;
+use std::{ptr, slice};
+use libc::{size_t};
 
 mod sodium;
+mod secret_pointer;
 
 /// A value that represents a byte buffer suitable for in-memory
 /// storage of cryptographic secrets.
@@ -47,20 +48,6 @@ pub struct SecretSlice<'a> {
 
     /// The internal slice pointing at the secret data.
     slice: &'a mut [u8],
-}
-
-struct SecretPointer {
-    /// A C pointer to a memory location suitable for the storage of
-    /// cryptographic secrets.
-    ptr: *mut c_void,
-
-    /// The number of live references to the contents of the
-    /// `SecretPointer`. When the ref count drops to zero, the memory is
-    /// reprotected.
-    refs: cell::Cell<uint>,
-
-    /// The current level of access granted to the pointer.
-    prot: cell::Cell<sodium::Protection>,
 }
 
 /// Initializes the underlying libsodium library which is used for
@@ -279,94 +266,6 @@ impl Add<Secret, Secret> for Secret {
     }
 }
 
-impl SecretPointer {
-    /// Allocates memory for a pointer of the given length. When this
-    /// function returns, this memory is `mprotect`ed such that it
-    /// cannot be read from or written to. It is also `mlock`ed to
-    /// prevent being swapped to disk.
-    pub fn alloc(len: size_t) -> SecretPointer {
-        init();
-
-        SecretPointer {
-            ptr:  unsafe { sodium::alloc(len) },
-            refs: cell::Cell::new(0u),
-            prot: cell::Cell::new(sodium::Protection::NoAccess),
-        }
-    }
-
-    /// Requests a copy of the internal pointer with a specific access
-    /// level and increases the ref count.
-    ///
-    /// Each `retain` *must* be paired with a corresponding `release`;
-    /// when the ref count hits zero, the memory is re-`mprotect`ed to
-    /// be inaccessible. Panics if going directly from any
-    /// non-NoAccess protection level to another non-NoAccess
-    /// protection level, because we don't want to change the
-    /// `mprotect` level of a pointer someone else might still have
-    /// access to.
-    pub fn retain(&self, prot: sodium::Protection) -> *mut c_void {
-        let refs = self.refs.get() + 1;
-
-        self.protect(prot);
-        self.refs.set(refs);
-
-        self.ptr
-    }
-
-    /// Manually releases access to the SecretPointer and decreases
-    /// the ref count. If the ref count goes below zero, panics.
-    pub fn release(&self) {
-        let refs = self.refs.get() - 1;
-
-        // technically this can also happen if we just call retain
-        // 2^64 times, though something tells me this won't ever
-        // happen in practice
-        if refs == uint::MAX {
-            panic!("released a SecretPointer that was not retained");
-        }
-
-        if refs == 0 {
-            self.protect(sodium::Protection::NoAccess);
-        }
-
-        self.refs.set(refs);
-    }
-
-    /// Changes the protection level on the underlying pointer. Panics
-    /// if we try to change directly between two non-NoAccess levels.
-    fn protect(&self, prot: sodium::Protection) {
-        let current = self.prot.get();
-
-        // short-circuit if we're already at the same protection level
-        if current == prot {
-            return;
-        }
-
-        // disallow everything except NoAccess => access, or access =>
-        // NoAccess (either the requested protection or the current
-        // protection should be NoAccess)
-        if prot != sodium::Protection::NoAccess && current != sodium::Protection::NoAccess {
-            panic!("secret is already unlocked for {}", current);
-        }
-
-        unsafe { sodium::protect(self.ptr, prot) };
-
-        self.prot.set(prot);
-    }
-}
-
-impl Drop for SecretPointer {
-    /// Sanitizes and frees the memory located at the pointer. Panics
-    /// if the ref count isn't zero.
-    fn drop(&mut self) {
-        if self.refs.get() != 0 {
-            panic!("secrets bug: retained SecretPointer was dropped")
-        }
-
-        unsafe { sodium::free(self.ptr) };
-    }
-}
-
 impl<'a> SecretSlice<'a> {
     /// Creates a new `SecretSlice` that references the data at the
     /// given `SecretPointer` and allows access to `len` bytes through
@@ -449,15 +348,15 @@ fn test_read_protection_reset() {
         let b = secret.read();
         let c = secret.read();
 
-        assert_eq!(a     .ptr.prot.get(), sodium::Protection::ReadOnly);
-        assert_eq!(b     .ptr.prot.get(), sodium::Protection::ReadOnly);
-        assert_eq!(c     .ptr.prot.get(), sodium::Protection::ReadOnly);
-        assert_eq!(secret.ptr.prot.get(), sodium::Protection::ReadOnly);
-        assert_eq!(secret.ptr.refs.get(), 3u);
+        assert_eq!(a     .ptr.prot(), sodium::Protection::ReadOnly);
+        assert_eq!(b     .ptr.prot(), sodium::Protection::ReadOnly);
+        assert_eq!(c     .ptr.prot(), sodium::Protection::ReadOnly);
+        assert_eq!(secret.ptr.prot(), sodium::Protection::ReadOnly);
+        assert_eq!(secret.ptr.refs(), 3u);
     }
 
-    assert_eq!(secret.ptr.prot.get(), sodium::Protection::NoAccess);
-    assert_eq!(secret.ptr.refs.get(), 0u);
+    assert_eq!(secret.ptr.prot(), sodium::Protection::NoAccess);
+    assert_eq!(secret.ptr.refs(), 0u);
 }
 
 #[test]
@@ -467,52 +366,10 @@ fn test_write_protection_reset() {
     {
         let a = secret.write();
 
-        assert_eq!(a.ptr.prot.get(), sodium::Protection::ReadWrite);
-        assert_eq!(a.ptr.refs.get(), 1u);
+        assert_eq!(a.ptr.prot(), sodium::Protection::ReadWrite);
+        assert_eq!(a.ptr.refs(), 1u);
     }
 
-    assert_eq!(secret.ptr.prot.get(), sodium::Protection::NoAccess);
-    assert_eq!(secret.ptr.refs.get(), 0u);
-}
-
-#[test]
-#[should_fail(expected = "secret is already unlocked for ReadOnly")]
-fn test_no_switching_read_to_write() {
-    let ptr = SecretPointer::alloc(12);
-
-    (|&mut:| {
-        ptr.retain(sodium::Protection::ReadOnly);
-        ptr.retain(sodium::Protection::ReadWrite);
-    }).finally(|| {
-        ptr.release();
-    });
-}
-
-#[test]
-#[should_fail(expected = "secret is already unlocked for ReadWrite")]
-fn test_no_switching_write_to_read() {
-    let ptr = SecretPointer::alloc(90);
-
-    (|&mut:| {
-        ptr.retain(sodium::Protection::ReadWrite);
-        ptr.retain(sodium::Protection::ReadOnly);
-    }).finally(|| {
-        ptr.release();
-    });
-}
-
-#[test]
-#[should_fail(expected = "secrets bug: retained SecretPointer was dropped")]
-fn test_unmatched_retain() {
-    let ptr = SecretPointer::alloc(42);
-
-    ptr.retain(sodium::Protection::ReadOnly);
-}
-
-#[test]
-#[should_fail(expected = "released a SecretPointer that was not retained")]
-fn test_unmatched_release() {
-    let ptr = SecretPointer::alloc(42);
-
-    ptr.release();
+    assert_eq!(secret.ptr.prot(), sodium::Protection::NoAccess);
+    assert_eq!(secret.ptr.refs(), 0u);
 }
