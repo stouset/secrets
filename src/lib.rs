@@ -12,42 +12,13 @@
 
 extern crate libc;
 
-use std::{cell, ptr, slice, sync, uint};
-use libc::{c_void, c_int, size_t};
+use std::{cell, ptr, slice, uint};
+use libc::{c_void, size_t};
 
 #[cfg(test)]
 use std::finally::Finally;
 
-#[link(name = "sodium")]
-extern {
-    fn sodium_init() -> c_int;
-
-    fn sodium_malloc(size: size_t) -> *mut c_void;
-    fn sodium_free(ptr: *mut c_void);
-
-    fn sodium_mprotect_noaccess(ptr: *const c_void)  -> c_int;
-    fn sodium_mprotect_readonly(ptr: *const c_void)  -> c_int;
-    fn sodium_mprotect_readwrite(ptr: *const c_void) -> c_int;
-
-    fn sodium_memzero(ptr: *mut c_void, size: size_t);
-
-    fn sodium_memcmp(b1: *const c_void, b2: *const c_void, size: size_t) -> c_int;
-}
-
-static SODIUM_INIT: sync::Once = sync::ONCE_INIT;
-
-#[deriving(Copy, PartialEq, Show)]
-/// The possible levels of access granted to a `SecretPointer`.
-enum Protection {
-    /// The memory may not be read or written to.
-    NoAccess,
-
-    /// The memory may only be read from.
-    ReadOnly,
-
-    /// The memory may be read from or written to.
-    ReadWrite,
-}
+mod sodium;
 
 /// A value that represents a byte buffer suitable for in-memory
 /// storage of cryptographic secrets.
@@ -89,7 +60,19 @@ struct SecretPointer {
     refs: cell::Cell<uint>,
 
     /// The current level of access granted to the pointer.
-    prot: cell::Cell<Protection>,
+    prot: cell::Cell<sodium::Protection>,
+}
+
+/// Initializes the underlying libsodium library which is used for
+/// memory allocation.
+///
+/// In most cases, this is called automatically for you. However, if
+/// you link to another library that uses libsodium, race conditions
+/// involving initialization can occur if both libraries initialize
+/// libsodium in threads. If this is the case, you may explicitly call
+/// this function before spawning threads.
+pub fn init() {
+    sodium::init();
 }
 
 impl Secret {
@@ -124,8 +107,8 @@ impl Secret {
         unsafe {
             let mut dst = secret.write();
 
-            zero(
-                dst.as_mut_ptr() as *mut c_void,
+            sodium::zero(
+                dst.as_mut_ptr() as *mut _,
                 len              as size_t
             );
         }
@@ -180,7 +163,7 @@ impl Secret {
     /// println!("{}", &*secret.read());
     /// ```
     pub fn read(&self) -> SecretSlice {
-        SecretSlice::new(&self.ptr, self.len, Protection::ReadOnly)
+        SecretSlice::new(&self.ptr, self.len, sodium::Protection::ReadOnly)
     }
 
     /// Returns a `SecretSlice` that derefs into a slice from which the
@@ -201,7 +184,7 @@ impl Secret {
     /// assert!(secret == secrets::Secret::new(&mut [42]));
     /// ```
     pub fn write(&mut self) -> SecretSlice {
-        SecretSlice::new(&self.ptr, self.len, Protection::ReadWrite)
+        SecretSlice::new(&self.ptr, self.len, sodium::Protection::ReadWrite)
     }
 
     /// Returns a new `Secret` containing the data sliced between the
@@ -305,9 +288,9 @@ impl SecretPointer {
         init();
 
         SecretPointer {
-            ptr:  alloc(len),
+            ptr:  unsafe { sodium::alloc(len) },
             refs: cell::Cell::new(0u),
-            prot: cell::Cell::new(Protection::NoAccess),
+            prot: cell::Cell::new(sodium::Protection::NoAccess),
         }
     }
 
@@ -321,7 +304,7 @@ impl SecretPointer {
     /// protection level, because we don't want to change the
     /// `mprotect` level of a pointer someone else might still have
     /// access to.
-    pub fn retain(&self, prot: Protection) -> *mut c_void {
+    pub fn retain(&self, prot: sodium::Protection) -> *mut c_void {
         let refs = self.refs.get() + 1;
 
         self.protect(prot);
@@ -343,7 +326,7 @@ impl SecretPointer {
         }
 
         if refs == 0 {
-            self.protect(Protection::NoAccess);
+            self.protect(sodium::Protection::NoAccess);
         }
 
         self.refs.set(refs);
@@ -351,7 +334,7 @@ impl SecretPointer {
 
     /// Changes the protection level on the underlying pointer. Panics
     /// if we try to change directly between two non-NoAccess levels.
-    fn protect(&self, prot: Protection) {
+    fn protect(&self, prot: sodium::Protection) {
         let current = self.prot.get();
 
         // short-circuit if we're already at the same protection level
@@ -362,11 +345,11 @@ impl SecretPointer {
         // disallow everything except NoAccess => access, or access =>
         // NoAccess (either the requested protection or the current
         // protection should be NoAccess)
-        if prot != Protection::NoAccess && current != Protection::NoAccess {
+        if prot != sodium::Protection::NoAccess && current != sodium::Protection::NoAccess {
             panic!("secret is already unlocked for {}", current);
         }
 
-        protect(self.ptr, prot);
+        unsafe { sodium::protect(self.ptr, prot) };
 
         self.prot.set(prot);
     }
@@ -380,7 +363,7 @@ impl Drop for SecretPointer {
             panic!("secrets bug: retained SecretPointer was dropped")
         }
 
-        free(self.ptr)
+        unsafe { sodium::free(self.ptr) };
     }
 }
 
@@ -388,7 +371,7 @@ impl<'a> SecretSlice<'a> {
     /// Creates a new `SecretSlice` that references the data at the
     /// given `SecretPointer` and allows access to `len` bytes through
     /// that pointer.
-    fn new(ptr: &'a SecretPointer, len: uint, prot: Protection) -> SecretSlice {
+    fn new(ptr: &'a SecretPointer, len: uint, prot: sodium::Protection) -> SecretSlice {
         let slice = unsafe {
             // technically we don't *know* that this is a mutable
             // pointer (we might have readonly access to it), but as
@@ -411,7 +394,7 @@ impl<'a> PartialEq for SecretSlice<'a> {
     /// time.
     fn eq(&self, other: &SecretSlice) -> bool {
         unsafe {
-            sodium_memcmp(
+            sodium::memcmp(
                 self .as_ptr() as *const _,
                 other.as_ptr() as *const _,
                 other.len()    as size_t
@@ -457,73 +440,6 @@ impl<'a> Drop for SecretSlice<'a> {
     }
 }
 
-/// Initializes the Sodium library, which is used for memory
-/// allocation. Uses std::sync::Once to ensure it's not called
-/// simultaneously between threads.
-///
-/// This is automatically called for you when allocating new
-/// secrets. However, if you are linking to another library that uses
-/// libsodium, that library may try to initialize it at the same time
-/// we do (in a separate thread). If this is the case, you may call
-/// this function manually before invoking threads.
-pub fn init() {
-    SODIUM_INIT.doit(|| {
-        // ensure sodium is initialized before we call any
-        // sodium_* functions
-        assert!(unsafe { sodium_init() >= 0 }, "sodium couldn't be initialized");
-    });
-}
-
-/// Uses libsodium to allocate the requested amount of memory. The
-/// memory is `mprotect`ed to allow no access before this function
-/// returns.
-///
-/// Panics if memory cannot be allocated.
-fn alloc(len: size_t) -> *mut c_void {
-    let ptr : *mut c_void;
-
-    unsafe {
-        ptr = sodium_malloc(len as size_t);
-        assert!(!ptr.is_null(), "memory for a secret couldn't be allocated");
-    }
-
-    protect(ptr, Protection::NoAccess);
-
-    ptr
-}
-
-/// Frees memory allocated with `alloc`. Panics if the pointer is null.
-fn free(ptr: *mut c_void) {
-    assert!(!ptr.is_null(), "tried to free a null pointer");
-
-    unsafe {
-        // FIXME: workaround for a bug in libsodium 1.0.1, to be fixed
-        // in next release
-        sodium_mprotect_readwrite(ptr as *const c_void);
-
-        sodium_free(ptr)
-    };
-}
-
-/// Changes the protection level on the provided pointer.
-fn protect(ptr: *mut c_void, prot: Protection) {
-    assert!(!ptr.is_null(), "tried to protect a null pointer");
-
-    unsafe {
-        let ret = match prot {
-            Protection::NoAccess  => sodium_mprotect_noaccess(ptr as *const c_void),
-            Protection::ReadOnly  => sodium_mprotect_readonly(ptr as *const c_void),
-            Protection::ReadWrite => sodium_mprotect_readwrite(ptr as *const c_void),
-        };
-
-        assert!(ret == 0, "couldn't set memory protection to {}", prot);
-    }
-}
-
-unsafe fn zero(ptr: *mut c_void, len: size_t) {
-    sodium_memzero(ptr, len)
-}
-
 #[test]
 fn test_read_protection_reset() {
     let secret = Secret::empty(256);
@@ -533,14 +449,14 @@ fn test_read_protection_reset() {
         let b = secret.read();
         let c = secret.read();
 
-        assert_eq!(a     .ptr.prot.get(), Protection::ReadOnly);
-        assert_eq!(b     .ptr.prot.get(), Protection::ReadOnly);
-        assert_eq!(c     .ptr.prot.get(), Protection::ReadOnly);
-        assert_eq!(secret.ptr.prot.get(), Protection::ReadOnly);
+        assert_eq!(a     .ptr.prot.get(), sodium::Protection::ReadOnly);
+        assert_eq!(b     .ptr.prot.get(), sodium::Protection::ReadOnly);
+        assert_eq!(c     .ptr.prot.get(), sodium::Protection::ReadOnly);
+        assert_eq!(secret.ptr.prot.get(), sodium::Protection::ReadOnly);
         assert_eq!(secret.ptr.refs.get(), 3u);
     }
 
-    assert_eq!(secret.ptr.prot.get(), Protection::NoAccess);
+    assert_eq!(secret.ptr.prot.get(), sodium::Protection::NoAccess);
     assert_eq!(secret.ptr.refs.get(), 0u);
 }
 
@@ -551,11 +467,11 @@ fn test_write_protection_reset() {
     {
         let a = secret.write();
 
-        assert_eq!(a.ptr.prot.get(), Protection::ReadWrite);
+        assert_eq!(a.ptr.prot.get(), sodium::Protection::ReadWrite);
         assert_eq!(a.ptr.refs.get(), 1u);
     }
 
-    assert_eq!(secret.ptr.prot.get(), Protection::NoAccess);
+    assert_eq!(secret.ptr.prot.get(), sodium::Protection::NoAccess);
     assert_eq!(secret.ptr.refs.get(), 0u);
 }
 
@@ -565,8 +481,8 @@ fn test_no_switching_read_to_write() {
     let ptr = SecretPointer::alloc(12);
 
     (|&mut:| {
-        ptr.retain(Protection::ReadOnly);
-        ptr.retain(Protection::ReadWrite);
+        ptr.retain(sodium::Protection::ReadOnly);
+        ptr.retain(sodium::Protection::ReadWrite);
     }).finally(|| {
         ptr.release();
     });
@@ -578,8 +494,8 @@ fn test_no_switching_write_to_read() {
     let ptr = SecretPointer::alloc(90);
 
     (|&mut:| {
-        ptr.retain(Protection::ReadWrite);
-        ptr.retain(Protection::ReadOnly);
+        ptr.retain(sodium::Protection::ReadWrite);
+        ptr.retain(sodium::Protection::ReadOnly);
     }).finally(|| {
         ptr.release();
     });
@@ -590,7 +506,7 @@ fn test_no_switching_write_to_read() {
 fn test_unmatched_retain() {
     let ptr = SecretPointer::alloc(42);
 
-    ptr.retain(Protection::ReadOnly);
+    ptr.retain(sodium::Protection::ReadOnly);
 }
 
 #[test]
@@ -599,10 +515,4 @@ fn test_unmatched_release() {
     let ptr = SecretPointer::alloc(42);
 
     ptr.release();
-}
-
-#[test]
-#[should_fail(expected = "tried to free a null pointer")]
-fn test_free_null_ptr() {
-    free(0 as *mut c_void);
 }
