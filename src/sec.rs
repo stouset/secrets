@@ -64,7 +64,7 @@ impl<T> BorrowMut<[T]> for Sec<T> {
 }
 
 impl<'a> From<&'a mut [u8]> for Sec<u8> {
-    fn from(bytes: &'a mut [u8]) -> Sec<u8> {
+    fn from(bytes: &'a mut [u8]) -> Self {
         let ptr   = bytes.as_mut_ptr();
         let len   = bytes.len();
 
@@ -110,15 +110,15 @@ impl<T> Sec<T> {
     pub fn len(&self) -> usize { self.len }
 
     pub fn read(&self) {
-        self.retain(|ptr| unsafe { sodium::mprotect_readonly(ptr) == 0 });
+        self.retain(|ptr| unsafe { sodium::mprotect_readonly(ptr) });
     }
 
     pub fn write(&mut self) {
-        self.retain(|ptr| unsafe { sodium::mprotect_readwrite(ptr) == 0 });
+        self.retain(|ptr| unsafe { sodium::mprotect_readwrite(ptr) });
     }
 
     pub fn lock(&self) {
-        self.release(|ptr| unsafe {sodium::mprotect_noaccess(ptr) == 0 });
+        self.release(|ptr| unsafe {sodium::mprotect_noaccess(ptr) });
     }
 
     fn retain<F>(&self, cb: F) where F: Fn(*const T) -> bool {

@@ -34,7 +34,7 @@ impl Secret<u8> {
 
 impl<T> Secret<T> {
     pub fn new(len: usize) -> Self {
-        Secret { sec: Sec::<T>::new(len) }
+        Secret { sec: Sec::new(len) }
     }
 
     pub fn len(&self) -> usize { self.sec.len() }

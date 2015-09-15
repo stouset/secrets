@@ -59,16 +59,16 @@ pub unsafe fn memcmp<T>(ptr1: *const T, ptr2: *const T, count: usize) -> bool {
     sodium_memcmp(ptr1 as *const _, ptr2 as *const _, size_of::<T>(count)) == 0
 }
 
-pub unsafe fn mprotect_noaccess<T>(ptr: *const T) -> c_int {
-    sodium_mprotect_noaccess(ptr as *const _)
+pub unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
+    sodium_mprotect_noaccess(ptr as *const _) == 0
 }
 
-pub unsafe fn mprotect_readonly<T>(ptr: *const T) -> c_int {
-    sodium_mprotect_readonly(ptr as *const _)
+pub unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
+    sodium_mprotect_readonly(ptr as *const _) == 0
 }
 
-pub unsafe fn mprotect_readwrite<T>(ptr: *const T) -> c_int {
-    sodium_mprotect_readwrite(ptr as *const _)
+pub unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
+    sodium_mprotect_readwrite(ptr as *const _) == 0
 }
 
 pub unsafe fn randomarray<T>(ptr: *mut T, count: usize) {
