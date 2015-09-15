@@ -71,26 +71,40 @@ impl<T> PartialEq for Secret<T> {
 impl<T> Eq for Secret<T> {}
 
 impl Secret<u8> {
+    /// Creates a new Secret capable of storing `len` bytes. By
+    /// default, the allocated region is filled with 0xd0 bytes in
+    /// order to help catch bugs due to uninitialized data.
     pub fn bytes(len: usize) -> Self {
         Secret::new(len)
     }
 
+    /// Creates a new Secret filled with `len` bytes of
+    /// cryptographically random data.
     pub fn random(len: usize) -> Self {
         Secret { sec: Sec::random(len) }
     }
 }
 
 impl<T> Secret<T> {
+    /// Creates a new Secret capable of storing `len` elements of type
+    /// `T`. By default, the allocated region is filled with 0xd0
+    /// bytes in order to help catch bugs due to uninitialized data.
     pub fn new(len: usize) -> Self {
         Secret { sec: Sec::new(len) }
     }
 
+    /// Returns the number of elements in the Secret.
     pub fn len(&self) -> usize { self.sec.len() }
 
+    /// Returns a `Ref<T>` from which elements in the `Secret` can be
+    /// safely read from, via either pointer or slice semantics.
     pub fn borrow(&self) -> Ref<T> {
         Ref::new(&self.sec)
     }
 
+    /// Returns a `Ref<T>` from which elements in the `Secret` can be
+    /// safely read from or written to, via either pointer or slice
+    /// semantics.
     pub fn borrow_mut(&mut self) -> RefMut<T> {
         RefMut::new(&mut self.sec)
     }
