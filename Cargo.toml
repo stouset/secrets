@@ -1,0 +1,17 @@
+[package]
+name    = "secrets"
+version = "0.0.0"
+license = "MIT"
+
+authors     = ["Stephen Touset <stephen@touset.org>"]
+description = "Protected-access memory for cryptographic secrets"
+
+homepage      = "https://github.com/stouset/secrets"
+documentation = "https://stouset.github.io/secrets"
+repository    = "git@github.com:stouset/secrets"
+readme        = "README.md"
+
+keywords = [ "crypto", "cryptography", "allocator" ]
+
+[dependencies]
+libc = '~0.1'
