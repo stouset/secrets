@@ -63,6 +63,20 @@ impl<'a> From<&'a mut [u8]> for Sec<u8> {
     }
 }
 
+impl Sec<u8> {
+    pub fn random(len: usize) -> Self {
+        let mut sec = Sec::new(len);
+
+        unsafe {
+            sec.write();
+            sodium::randomarray(sec.ptr, sec.len);
+            sec.lock();
+        }
+
+        sec
+    }
+}
+
 impl<T> Sec<T> {
     pub fn new(len: usize) -> Self {
         sodium::init();

@@ -19,6 +19,8 @@ extern {
     fn sodium_mprotect_noaccess(ptr: *const c_void) -> c_int;
     fn sodium_mprotect_readonly(ptr: *const c_void) -> c_int;
     fn sodium_mprotect_readwrite(ptr: *const c_void) -> c_int;
+
+    fn randombytes_buf(ptr: *mut c_void, len: size_t);
 }
 
 pub fn init() {
@@ -65,4 +67,11 @@ pub unsafe fn mprotect_readonly<T>(ptr: *const T) -> c_int {
 
 pub unsafe fn mprotect_readwrite<T>(ptr: *const T) -> c_int {
     sodium_mprotect_readwrite(ptr as *const _)
+}
+
+pub unsafe fn randomarray<T>(ptr: *mut T, count: usize) {
+    randombytes_buf(
+        ptr                           as * mut _,
+        (mem::size_of::<T>() * count) as size_t,
+    )
 }

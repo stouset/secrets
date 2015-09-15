@@ -18,6 +18,10 @@ impl Secret<u8> {
     pub fn bytes(len: usize) -> Self {
         Secret::new(len)
     }
+
+    pub fn random(len: usize) -> Self {
+        Secret { sec: Sec::random(len) }
+    }
 }
 
 impl<T> Secret<T> {
