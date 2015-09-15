@@ -14,6 +14,14 @@ impl<'a, T> From<&'a mut T> for Secret<u8> where T: BorrowMut<[u8]> {
     }
 }
 
+impl<T> PartialEq for Secret<T> {
+    fn eq(&self, other: &Secret<T>) -> bool {
+        self.sec == other.sec
+    }
+}
+
+impl<T> Eq for Secret<T> {}
+
 impl Secret<u8> {
     pub fn bytes(len: usize) -> Self {
         Secret::new(len)
@@ -44,6 +52,22 @@ impl<T> Secret<T> {
 mod tests {
     #![allow(unsafe_code)]
     use super::Secret;
+
+    #[test]
+    fn it_creates_byte_buffers() {
+        let secret = Secret::bytes(1397);
+
+        assert_eq!(1397, secret.len());
+    }
+
+    #[test]
+    fn it_creates_random_byte_buffers() {
+        let secret_1 = Secret::random(128);
+        let secret_2 = Secret::random(128);
+
+        // if this ever fails, modern crypto is doomed
+        assert!(secret_1 != secret_2);
+    }
 
     #[test]
     fn it_copies_input_memory() {

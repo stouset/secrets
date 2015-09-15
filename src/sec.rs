@@ -24,6 +24,24 @@ impl<T> Debug for Sec<T> {
     }
 }
 
+impl<T> PartialEq for Sec<T> {
+    fn eq(&self, other: &Sec<T>) -> bool {
+        if self.len != other.len {
+            return false;
+        }
+
+        self .read();
+        other.read();
+        let ret = unsafe { sodium::memcmp(other.ptr, self.ptr, self.len) };
+        other.lock();
+        self .lock();
+
+        ret
+    }
+}
+
+impl<T> Eq for Sec<T> {}
+
 impl<T> Borrow<*const T> for Sec<T> {
     fn borrow(&self) -> &*const T {
         let ptr : *const *mut   T = &self.ptr;

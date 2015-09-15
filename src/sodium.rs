@@ -15,6 +15,7 @@ extern {
     fn sodium_free(ptr: *const c_void);
 
     fn sodium_memzero(ptr: *const c_void, len: size_t);
+    fn sodium_memcmp(ptr1: *const c_void, ptr2: *const c_void, len: size_t) -> c_int;
 
     fn sodium_mprotect_noaccess(ptr: *const c_void) -> c_int;
     fn sodium_mprotect_readonly(ptr: *const c_void) -> c_int;
@@ -51,10 +52,11 @@ pub fn free<T>(ptr: *const T) {
 }
 
 pub unsafe fn memzero<T>(ptr: *const T, count: usize) {
-    sodium_memzero(
-        ptr                          as * const _,
-        (mem::size_of::<T>() * count) as size_t
-    )
+    sodium_memzero(ptr as * const _, size_of::<T>(count))
+}
+
+pub unsafe fn memcmp<T>(ptr1: *const T, ptr2: *const T, count: usize) -> bool {
+    sodium_memcmp(ptr1 as *const _, ptr2 as *const _, size_of::<T>(count)) == 0
 }
 
 pub unsafe fn mprotect_noaccess<T>(ptr: *const T) -> c_int {
@@ -70,8 +72,9 @@ pub unsafe fn mprotect_readwrite<T>(ptr: *const T) -> c_int {
 }
 
 pub unsafe fn randomarray<T>(ptr: *mut T, count: usize) {
-    randombytes_buf(
-        ptr                           as * mut _,
-        (mem::size_of::<T>() * count) as size_t,
-    )
+    randombytes_buf(ptr as *mut _, size_of::<T>(count))
+}
+
+fn size_of<T>(count: usize) -> size_t {
+    (mem::size_of::<T>() * count) as size_t
 }
