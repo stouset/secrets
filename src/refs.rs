@@ -1,13 +1,14 @@
 use sec::Sec;
 
 use std::borrow::{Borrow, BorrowMut};
-use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
+#[derive(Debug)]
 pub struct Ref<'a, T: 'a> {
     sec: &'a Sec<T>,
 }
 
+#[derive(Debug)]
 pub struct RefMut<'a, T: 'a> {
     sec: &'a mut Sec<T>,
 }
@@ -18,14 +19,6 @@ impl<'a, T: 'a> Drop for Ref<'a, T> {
 
 impl<'a, T: 'a> Drop for RefMut<'a, T> {
     fn drop(&mut self) { self.sec.lock(); }
-}
-
-impl<'a, T: 'a> Debug for Ref<'a, T> where T: Debug {
-    fn fmt(&self, f: &mut Formatter) -> Result { self.as_slice().fmt(f) }
-}
-
-impl<'a, T: 'a> Debug for RefMut<'a, T> where T: Debug {
-    fn fmt(&self, f: &mut Formatter) -> Result { self.as_slice().fmt(f) }
 }
 
 impl<'a, T: 'a> Deref for Ref<'a, T> {

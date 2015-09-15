@@ -4,10 +4,10 @@ use sodium;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::Cell;
+use std::fmt::{self, Debug};
 use std::ptr;
 use std::slice;
 
-#[derive(Debug)]
 pub struct Sec<T> {
     ptr:  *mut T,
     len:  usize,
@@ -16,6 +16,12 @@ pub struct Sec<T> {
 
 impl<T> Drop for Sec<T> {
     fn drop(&mut self) { sodium::free(self.ptr) }
+}
+
+impl<T> Debug for Sec<T> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{{ {} bytes redacted }}", self.len)
+    }
 }
 
 impl<T> Borrow<*const T> for Sec<T> {
