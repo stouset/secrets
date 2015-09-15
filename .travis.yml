@@ -1,1 +1,11 @@
 language: rust
+sudo:     false
+
+after_success: |
+  [ $TRAVIS_BRANCH       = master ] &&
+  [ $TRAVIS_PULL_REQUEST = false ]  &&
+  script/update-docs $TRAVIS_REPO_SLUG
+
+env:
+  global:
+    secure: UlGYL6Vcv6XpsId97Urb2xnitfYWa5Ar5gHFzS52yySnSKbQ5ViTAJ4PcIrXek2TInYTMn8Hj3teGsA+SQO2cyzwjNFaDr3JzVWbiWt5DQMVv6qeeZAOaKrBEAZPmYj/enP64yJNseV4SKAjL14ROjErijYpXUSfGMEyRfYH3zI=

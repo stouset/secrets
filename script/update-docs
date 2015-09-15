@@ -1,0 +1,30 @@
+#!/bin/sh -e
+
+DOC_DIR=target/doc
+
+GIT_DIR=../../.git
+GIT_DOC_BRANCH=gh-pages
+GIT_REMOTE=origin
+GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+GIT_REV=$(git rev-parse HEAD | tr -d '\n')
+GIT_AUTHOR_NAME=$(git show -s --format='%an' $GIT_REV)
+GIT_AUTHOR_EMAIL=$(git show -s --format='%ae' $GIT_REV)
+GIT_VERSION=$(git --version)
+
+cargo doc
+git fetch $GIT_REMOTE ${GIT_DOC_BRANCH}:refs/remotes/origin/$GIT_DOC_BRANCH
+git checkout -b $GIT_DOC_BRANCH origin/$GIT_DOC_BRANCH
+cp index.html $DOC_DIR
+
+cd $DOC_DIR
+git --git-dir $GIT_DIR config user.name "$GIT_AUTHOR_NAME"
+git --git-dir $GIT_DIR config user.email "$GIT_AUTHOR_EMAIL"
+git --git-dir $GIT_DIR add --all .
+git --git-dir $GIT_DIR commit -m "Documentation for commit $GIT_REV"
+cd ../..
+
+git checkout $GIT_BRANCH
+
+if [ -n "$GH_TOKEN" -a -n "$1" ]; then
+    git push https://$GH_TOKEN@github.com/$1.git gh-pages
+fi
