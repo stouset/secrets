@@ -36,6 +36,21 @@ use std::borrow::BorrowMut;
 /// assert_eq!("\0\0\0\0\0\0", string);
 /// assert_eq!(b"string",      secret_r.as_slice());
 /// ```
+///
+/// Secrets as pointers:
+///
+/// ```
+/// use secrets::Secret;
+/// use std::ptr;
+///
+/// let mut secret   = Secret::bytes(4);
+/// let mut secret_w = secret.borrow_mut();
+///
+/// unsafe { ptr::write_bytes(secret_w.as_mut_ptr(), 0xff, secret_w.len()) };
+///
+/// assert_eq!([0xff, 0xff, 0xff, 0xff], secret_w.as_slice());
+/// ```
+///
 #[derive(Debug)]
 pub struct Secret<T> {
     sec: Sec<T>,
