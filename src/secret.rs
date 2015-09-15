@@ -3,6 +3,39 @@ use sec::Sec;
 
 use std::borrow::BorrowMut;
 
+/// A type that wraps allocated memory suitable for cryptographic
+/// secrets.
+///
+/// When initialized with existing data, the memory of the existing
+/// data is zeroed out. That said, this library cannot guarantee that
+/// that memory has not been copied elsewhere, swapped to disk, or
+/// otherwise handled insecurely so rely on this with caution.
+///
+/// # Examples
+///
+/// Random secrets:
+///
+/// ```
+/// use secrets::Secret;
+///
+/// let secret   = Secret::random(32);
+/// let secret_r = secret.borrow();
+///
+/// println!("{:?}", secret_r.as_slice());
+/// ```
+///
+/// Secrets from existing mutable data:
+///
+/// ```
+/// use secrets::Secret;
+///
+/// let mut string   = "string".to_string();
+/// let     secret   = Secret::from(unsafe { string.as_mut_vec() });
+/// let     secret_r = secret.borrow();
+///
+/// assert_eq!("\0\0\0\0\0\0", string);
+/// assert_eq!(b"string",      secret_r.as_slice());
+/// ```
 #[derive(Debug)]
 pub struct Secret<T> {
     sec: Sec<T>,
