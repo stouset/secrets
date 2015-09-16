@@ -58,29 +58,37 @@ impl<'a, T: 'a> Borrow<*mut T> for RefMut<'a, T> {
 }
 
 impl<'a, T: 'a> Ref<'a, T> {
+    #[doc(hidden)]
     pub fn new(sec: &Sec<T>) -> Ref<T> {
         sec.read();
 
         Ref { sec: sec }
     }
 
-    pub fn len(&self) -> usize { self.sec.len() }
-
+    /// Allows the contents to be accessed via a raw pointer.
     pub fn as_ptr(&self)   -> *const T { *self.sec.borrow() }
+
+    /// Allows the contents to be accessed via a slice.
     pub fn as_slice(&self) -> &[T]     {  self.sec.borrow() }
 }
 
 impl<'a, T: 'a> RefMut<'a, T> {
+    #[doc(hidden)]
     pub fn new(sec: &mut Sec<T>) -> RefMut<T> {
         sec.write();
 
         RefMut { sec: sec }
     }
 
-    pub fn len(&self) -> usize { self.sec.len() }
-
+    /// Allows the contents to be accessed via a raw pointer.
     pub fn as_ptr(&self)           -> *const T { *(*self.sec).borrow() }
+
+    /// Allows the contents to be accessed mutably via a raw pointer.
     pub fn as_mut_ptr(&mut self)   -> *mut T   { *(*self.sec).borrow() }
+
+    /// Allows the contents to be accessed via a slice.
     pub fn as_slice(&self)         -> &[T]     {  (*self.sec).borrow() }
+
+    /// Allows the contents to be accessed mutably via a slice.
     pub fn as_mut_slice(&mut self) -> &mut [T] { self.sec.borrow_mut() }
 }

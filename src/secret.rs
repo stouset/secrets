@@ -71,8 +71,9 @@ impl<T> PartialEq for Secret<T> {
 impl<T> Eq for Secret<T> {}
 
 impl Secret<u8> {
-    /// Creates a new Secret capable of storing `len` bytes. By
-    /// default, the allocated region is filled with 0xd0 bytes in
+    /// Creates a new Secret capable of storing `len` bytes.
+    ///
+    /// By default, the allocated region is filled with 0xd0 bytes in
     /// order to help catch bugs due to uninitialized data.
     pub fn bytes(len: usize) -> Self {
         Secret::new(len)
@@ -87,8 +88,10 @@ impl Secret<u8> {
 
 impl<T> Secret<T> {
     /// Creates a new Secret capable of storing `len` elements of type
-    /// `T`. By default, the allocated region is filled with 0xd0
-    /// bytes in order to help catch bugs due to uninitialized data.
+    /// `T`.
+    ///
+    /// By default, the allocated region is filled with 0xd0 bytes in
+    /// order to help catch bugs due to uninitialized data.
     pub fn new(len: usize) -> Self {
         Secret { sec: Sec::new(len) }
     }
