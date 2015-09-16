@@ -142,43 +142,40 @@ impl<T> Sec<T> {
     pub fn lock(&self)         { self.release() }
 
     fn retain(&self, prot: Prot) {
-        if self.refs.get() != 0 {
+        let refs = self.refs.get();
+
+        if refs != 0 {
             debug_assert_eq!(self.prot.get(), prot);
             debug_assert!(self.prot.get() != Prot::ReadWrite);
         }
 
-        if self.refs.get() == 0 {
+        if refs == 0 {
             self.prot.set(prot);
-
-            unsafe {
-                let ret = match prot {
-                    Prot::NoAccess  => sodium::mprotect_noaccess(self.ptr),
-                    Prot::ReadOnly  => sodium::mprotect_readonly(self.ptr),
-                    Prot::ReadWrite => sodium::mprotect_readwrite(self.ptr),
-                };
-
-                if !ret {
-                    panic!("secrets: error retaining secret {:?}", prot);
-                }
-            }
+            mprotect(self.ptr, prot);
         }
 
-        self.refs.set(self.refs.get() + 1);
+        self.refs.set(refs + 1);
     }
 
     fn release(&self) {
-        debug_assert!(self.refs.get() != 0);
+        let refs = self.refs.get() - 1;
 
-        self.refs.set(self.refs.get() - 1);
+        self.refs.set(refs);
 
-        if self.refs.get() == 0 {
+        if refs == 0 {
             self.prot.set(Prot::NoAccess);
-
-            if !unsafe { sodium::mprotect_noaccess(self.ptr) } {
-                panic!("secrets: error releasing secret");
-            }
+            mprotect(self.ptr, Prot::NoAccess);
         }
+    }
+}
 
+fn mprotect<T>(ptr: *const T, prot: Prot) {
+    if !match prot {
+        Prot::NoAccess  => unsafe { sodium::mprotect_noaccess(ptr)  },
+        Prot::ReadOnly  => unsafe { sodium::mprotect_readonly(ptr)  },
+        Prot::ReadWrite => unsafe { sodium::mprotect_readwrite(ptr) },
+    } {
+        panic!("secrets: error protecting secret as {:?}", prot);
     }
 }
 
@@ -221,5 +218,11 @@ mod tests {
 
         sec.write();
         sec.write();
+    }
+
+    #[test]
+    #[should_panic]
+    fn it_doesnt_allow_different_access_types() {
+
     }
 }
