@@ -1,8 +1,9 @@
 secrets
 =======
 
-[![Build Status][travis-badge]][travis-url]
-[![crates.io][cargo-badge]][cargo-url]
+[![Build Status][badge-ci]][ci]
+[![crates.io][badge-package]][package]
+[![MIT][badge-license]][license]
 
 A library to help safely hold cryptographic secrets in memory.
 
@@ -32,8 +33,11 @@ License
 
 `secrets` is distributed under the [MIT license](./LICENSE).
 
-[docs]:         https://stouset.github.io/secrets
-[cargo-badge]:  http://meritbadge.herokuapp.com/secrets
-[cargo-url]:    https://crates.io/crates/secrets
-[travis-badge]: https://travis-ci.org/stouset/secrets.svg?branch=master
-[travis-url]:   https://travis-ci.org/stouset/secrets
+[ci]:      https://travis-ci.org/stouset/secrets
+[docs]:    https://stouset.github.io/secrets
+[license]: https://github.com/stouset/secrets/blob/master/LICENSE
+[package]: https://crates.io/crates/secrets
+
+[badge-ci]:      https://img.shields.io/travis/stouset/secrets.svg
+[badge-license]: https://img.shields.io/crates/l/secrets.svg
+[badge-package]: https://img.shields.io/crates/v/secrets.svg
