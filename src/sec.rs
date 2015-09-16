@@ -223,6 +223,27 @@ mod tests {
     #[test]
     #[should_panic]
     fn it_doesnt_allow_different_access_types() {
+        let mut sec = Sec::<u8>::new(5);
 
+        sec.read();
+        sec.write();
+    }
+
+    #[test]
+    #[should_panic]
+    fn it_panics_if_dropped_with_outstanding_refs() {
+        let sec = Sec::<f64>::new(1);
+
+        sec.read();
+    }
+
+    #[test]
+    #[should_panic]
+    fn it_panics_if_released_too_often() {
+        let sec = Sec::<u32>::new(10000);
+
+        sec.read();
+        sec.lock();
+        sec.lock();
     }
 }
