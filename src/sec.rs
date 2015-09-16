@@ -49,15 +49,16 @@ impl<T> PartialEq for Sec<T> {
             return false;
         }
 
-        self .read();
-        other.read();
+        let ret;
 
-        let ret = unsafe {
-            sodium::memcmp(other.ptr, self.ptr, self.len)
+        unsafe {
+            self .read();
+            other.read();
+            ret = sodium::memcmp(other.ptr, self.ptr, self.len);
+            other.lock();
+            self .lock();
         };
 
-        other.lock();
-        self .lock();
 
         ret
     }
