@@ -9,6 +9,8 @@
 //! allocation, an underflow canary (to catch underflows before a
 //! guard page), and are zeroed out when freed.
 
+#![deny(warnings)]
+
 #![warn(box_pointers)]
 #![warn(fat_ptr_transmutes)]
 #![warn(missing_copy_implementations)]
