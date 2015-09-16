@@ -8,6 +8,7 @@ use std::cell::Cell;
 use std::fmt::{self, Debug};
 use std::ptr;
 use std::slice;
+use std::thread;
 
 #[derive(Copy)]
 #[derive(Clone)]
@@ -27,7 +28,13 @@ pub struct Sec<T> {
 }
 
 impl<T> Drop for Sec<T> {
-    fn drop(&mut self) { sodium::free(self.ptr) }
+    fn drop(&mut self) {
+        if !thread::panicking() {
+            debug_assert_eq!(0,              self.refs.get());
+            debug_assert_eq!(Prot::NoAccess, self.prot.get());
+        }
+
+        sodium::free(self.ptr) }
 }
 
 impl<T> Debug for Sec<T> {
@@ -134,6 +141,10 @@ impl<T> Sec<T> {
     pub fn lock(&self)         { self.release() }
 
     fn retain(&self, prot: Prot) {
+        if self.refs.get() != 0 {
+            debug_assert_eq!(self.prot.get(), prot);
+            debug_assert!(self.prot.get() != Prot::ReadWrite);
+        }
 
         if self.refs.get() == 0 {
             self.prot.set(prot);
@@ -155,6 +166,8 @@ impl<T> Sec<T> {
     }
 
     fn release(&self) {
+        debug_assert!(self.refs.get() != 0);
+
         self.refs.set(self.refs.get() - 1);
 
         if self.refs.get() == 0 {
@@ -164,5 +177,48 @@ impl<T> Sec<T> {
                 panic!("secrets: error releasing secret");
             }
         }
+
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Sec;
+
+    #[test]
+    fn it_starts_with_zero_refs() {
+        let sec = Sec::<u8>::new(10);
+
+        assert_eq!(0, sec.refs.get());
+    }
+
+    #[test]
+    fn it_tracks_ref_counts_accurately() {
+        let mut sec = Sec::<u8>::new(10);
+
+        {
+            sec.read(); sec.read(); sec.read();
+            assert_eq!(3, sec.refs.get());
+            sec.lock(); sec.lock(); sec.lock();
+        }
+
+        assert_eq!(0, sec.refs.get());
+
+        {
+            sec.write();
+            assert_eq!(1, sec.refs.get());
+            sec.lock();
+        }
+
+        assert_eq!(0, sec.refs.get());
+    }
+
+    #[test]
+    #[should_panic]
+    fn it_doesnt_allow_multiple_writers() {
+        let mut sec = Sec::<u64>::new(1);
+
+        sec.write();
+        sec.write();
     }
 }
