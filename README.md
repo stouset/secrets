@@ -2,8 +2,8 @@ secrets
 =======
 
 [![Build Status][badge-ci]][ci]
-[![crates.io][badge-package]][package]
-[![MIT][badge-license]][license]
+[![Cargo Crate][badge-package]][package]
+[![License][badge-license]][license]
 
 A library to help safely hold cryptographic secrets in memory.
 
@@ -53,7 +53,7 @@ Documentation
 License
 -------
 
-`secrets` is distributed under the [MIT license](./LICENSE).
+`secrets` is distributed under the [MIT license][license].
 
 [ci]:      https://travis-ci.org/stouset/secrets
 [docs]:    https://stouset.github.io/secrets
