@@ -105,20 +105,6 @@ impl<'a> From<&'a mut [u8]> for Sec<u8> {
     }
 }
 
-impl Sec<u8> {
-    pub fn random(len: usize) -> Self {
-        let mut sec = Sec::new(len);
-
-        unsafe {
-            sec.write();
-            sodium::randomarray(sec.ptr, sec.len);
-            sec.lock();
-        }
-
-        sec
-    }
-}
-
 impl<T> Sec<T> {
     pub fn new(len: usize) -> Self {
         sodium::init();
@@ -132,6 +118,18 @@ impl<T> Sec<T> {
         };
 
         sec.lock();
+
+        sec
+    }
+
+    pub fn random(len: usize) -> Self {
+        let mut sec = Sec::new(len);
+
+        unsafe {
+            sec.write();
+            sodium::randomarray(sec.ptr, sec.len);
+            sec.lock();
+        }
 
         sec
     }
@@ -182,6 +180,34 @@ fn mprotect<T>(ptr: *const T, prot: Prot) {
 #[cfg(test)]
 mod tests {
     use super::Sec;
+
+    #[test]
+    fn it_compares_equality() {
+        let s1 = Sec::<f32>::new(32);
+        let s2 = Sec::<f32>::new(32);
+
+        assert_eq!(s1, s2);
+        assert_eq!(s2, s1);
+    }
+
+    #[test]
+    fn it_compares_inequality() {
+        let s1 = Sec::<f64>::random(2);
+        let s2 = Sec::<f64>::random(2);
+
+        assert!(s1 != s2);
+        assert!(s2 != s1);
+
+    }
+
+    #[test]
+    fn it_compares_inequality_on_length() {
+        let s1 = Sec::<u8>::new(1);
+        let s2 = Sec::<u8>::new(2);
+
+        assert!(s1 != s2);
+        assert!(s2 != s1);
+    }
 
     #[test]
     fn it_starts_with_zero_refs() {
