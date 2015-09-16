@@ -9,9 +9,20 @@ use std::fmt::{self, Debug};
 use std::ptr;
 use std::slice;
 
+#[derive(Copy)]
+#[derive(Clone)]
+#[derive(Debug)]
+#[derive(PartialEq)]
+enum Prot {
+    NoAccess,
+    ReadOnly,
+    ReadWrite,
+}
+
 pub struct Sec<T> {
     ptr:  *mut T,
     len:  usize,
+    prot: Cell<Prot>,
     refs: Cell<u8>
 }
 
@@ -105,7 +116,12 @@ impl<T> Sec<T> {
         sodium::init();
 
         let ptr = sodium::allocarray::<T>(len);
-        let sec = Sec { ptr: ptr, len: len, refs: Cell::new(1) };
+        let sec = Sec {
+            ptr:  ptr,
+            len:  len,
+            prot: Cell::new(Prot::ReadOnly),
+            refs: Cell::new(1)
+        };
 
         sec.lock();
 
@@ -113,35 +129,39 @@ impl<T> Sec<T> {
     }
 
     pub fn len(&self) -> usize { self.len }
+    pub fn read(&self)         { self.retain(Prot::ReadOnly) }
+    pub fn write(&mut self)    { self.retain(Prot::ReadWrite) }
+    pub fn lock(&self)         { self.release() }
 
-    pub fn read(&self) {
-        self.retain(|ptr| unsafe { sodium::mprotect_readonly(ptr) });
-    }
+    fn retain(&self, prot: Prot) {
 
-    pub fn write(&mut self) {
-        self.retain(|ptr| unsafe { sodium::mprotect_readwrite(ptr) });
-    }
-
-    pub fn lock(&self) {
-        self.release(|ptr| unsafe {sodium::mprotect_noaccess(ptr) });
-    }
-
-    fn retain<F>(&self, cb: F) where F: Fn(*const T) -> bool {
         if self.refs.get() == 0 {
-            if !cb(self.ptr) {
-                panic!("error retaining secret pointer");
+            self.prot.set(prot);
+
+            unsafe {
+                let ret = match prot {
+                    Prot::NoAccess  => sodium::mprotect_noaccess(self.ptr),
+                    Prot::ReadOnly  => sodium::mprotect_readonly(self.ptr),
+                    Prot::ReadWrite => sodium::mprotect_readwrite(self.ptr),
+                };
+
+                if !ret {
+                    panic!("secrets: error retaining secret {:?}", prot);
+                }
             }
         }
 
         self.refs.set(self.refs.get() + 1);
     }
 
-    fn release<F>(&self, cb: F) where F: Fn(*const T) -> bool {
+    fn release(&self) {
         self.refs.set(self.refs.get() - 1);
 
         if self.refs.get() == 0 {
-            if !cb(self.ptr) {
-                panic!("error releasing secret pointer");
+            self.prot.set(Prot::NoAccess);
+
+            if !unsafe { sodium::mprotect_noaccess(self.ptr) } {
+                panic!("secrets: error releasing secret");
             }
         }
     }
