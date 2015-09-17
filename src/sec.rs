@@ -1,13 +1,15 @@
 // This comment prevents Emacs from thinking this file is executable
 #![allow(unsafe_code)]
 
+use marker::{Randomizable, Zeroable};
+
 use sodium;
 
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::Cell;
 use std::fmt::{self, Debug};
+use std::mem;
 use std::ptr;
-use std::slice;
 use std::thread;
 
 #[derive(Copy)]
@@ -34,7 +36,8 @@ impl<T> Drop for Sec<T> {
             debug_assert_eq!(Prot::NoAccess, self.prot.get());
         }
 
-        sodium::free(self.ptr) }
+        sodium::free(self.ptr)
+    }
 }
 
 impl<T> Debug for Sec<T> {
@@ -44,21 +47,21 @@ impl<T> Debug for Sec<T> {
 }
 
 impl<T> PartialEq for Sec<T> {
-    fn eq(&self, other: &Sec<T>) -> bool {
-        if self.len != other.len {
+    fn eq(&self, s: &Self) -> bool {
+        let len = self.len;
+        let ret;
+
+        if len != s.len {
             return false;
         }
 
-        let ret;
-
         unsafe {
-            self .read();
-            other.read();
-            ret = sodium::memcmp(other.ptr, self.ptr, self.len);
-            other.lock();
-            self .lock();
+            self.read();
+            s   .read();
+            ret = sodium::memcmp(s.ptr, self.ptr, len);
+            s   .lock();
+            self.lock();
         };
-
 
         ret
     }
@@ -66,38 +69,74 @@ impl<T> PartialEq for Sec<T> {
 
 impl<T> Eq for Sec<T> {}
 
-impl<T> Borrow<*const T> for Sec<T> {
-    fn borrow(&self) -> &*const T {
-        let ptr : *const *mut   T = &self.ptr;
-        let ptr : *const *const T = ptr as *const *const T;
+impl<T> Borrow<T> for Sec<T> {
+    fn borrow(&self) -> &T { unsafe { &*self.ptr } }
+}
 
-        unsafe { &*ptr }
+impl<T> BorrowMut<T> for Sec<T> {
+    fn borrow_mut(&mut self) -> &mut T { unsafe { &mut *self.ptr } }
+}
+
+impl<'a, T> From<&'a mut T> for Sec<T> where T: Zeroable {
+    fn from(data: &mut T) -> Self {
+        let mut sec;
+
+        unsafe {
+            sec = Sec::new(1);
+
+            sec.write();
+            sodium::memmove(data, sec.ptr, 1);
+            sec.lock();
+        }
+
+        sec
     }
 }
 
-impl<T> Borrow<*mut T> for Sec<T> {
-    fn borrow(&self) -> &*mut T { &self.ptr }
-}
-
-impl<T> Borrow<[T]> for Sec<T> {
-    fn borrow(&self) -> &[T] { unsafe { slice::from_raw_parts(self.ptr, self.len) } }
-}
-
-impl<T> BorrowMut<[T]> for Sec<T> {
-    fn borrow_mut(&mut self) -> &mut [T] { unsafe { slice::from_raw_parts_mut(self.ptr, self.len) } }
-}
-
-impl<'a> From<&'a mut [u8]> for Sec<u8> {
-    fn from(bytes: &'a mut [u8]) -> Self {
-        let ptr   = bytes.as_mut_ptr();
-        let len   = bytes.len();
-
-        let mut sec = Sec::new(len);
+impl<T> Sec<T> where T: Randomizable {
+    pub fn random(len: usize) -> Self {
+        let mut sec;
 
         unsafe {
+            sec = Sec::new(len);
+
             sec.write();
-            ptr::copy_nonoverlapping(ptr, sec.ptr, len);
-            sodium::memzero(ptr, len);
+            sodium::random(sec.ptr, sec.len);
+            sec.lock();
+        }
+
+        sec
+    }
+}
+
+impl<T> Sec<T> where T: Default {
+    pub fn default(len: usize) -> Self {
+        let mut sec     : Sec<T>;
+        let     default : T = T::default();
+
+        unsafe {
+            sec = Sec::new(len);
+
+            sec.write();
+            for i in 1..len {
+                ptr::copy_nonoverlapping(&default, sec.ptr.offset(i as isize), 1);
+            }
+            sec.lock();
+        }
+
+        sec
+    }
+}
+
+impl<T> Sec<T> where T: Zeroable {
+    pub fn zero(len: usize) -> Self {
+        let mut sec : Sec<T>;
+
+        unsafe {
+            sec = Sec::new(len);
+
+            sec.write();
+            sodium::memzero(sec.ptr, sec.len);
             sec.lock();
         }
 
@@ -106,12 +145,11 @@ impl<'a> From<&'a mut [u8]> for Sec<u8> {
 }
 
 impl<T> Sec<T> {
-    pub fn new(len: usize) -> Self {
+    pub unsafe fn new(len: usize) -> Self {
         sodium::init();
 
-        let ptr = sodium::allocarray::<T>(len);
         let sec = Sec {
-            ptr:  ptr,
+            ptr:  sodium::malloc(len),
             len:  len,
             prot: Cell::new(Prot::ReadOnly),
             refs: Cell::new(1)
@@ -122,22 +160,12 @@ impl<T> Sec<T> {
         sec
     }
 
-    pub fn random(len: usize) -> Self {
-        let mut sec = Sec::new(len);
+    pub fn len(&self)  -> usize { self.len }
+    pub fn size(&self) -> usize { self.len() * mem::size_of::<T>() }
 
-        unsafe {
-            sec.write();
-            sodium::randomarray(sec.ptr, sec.len);
-            sec.lock();
-        }
-
-        sec
-    }
-
-    pub fn len(&self) -> usize { self.len }
-    pub fn read(&self)         { self.retain(Prot::ReadOnly) }
-    pub fn write(&mut self)    { self.retain(Prot::ReadWrite) }
-    pub fn lock(&self)         { self.release() }
+    pub fn read(&self)      { self.retain(Prot::ReadOnly) }
+    pub fn write(&mut self) { self.retain(Prot::ReadWrite) }
+    pub fn lock(&self)      { self.release() }
 
     fn retain(&self, prot: Prot) {
         let refs = self.refs.get();
@@ -183,8 +211,8 @@ mod tests {
 
     #[test]
     fn it_compares_equality() {
-        let s1 = Sec::<f32>::new(32);
-        let s2 = Sec::<f32>::new(32);
+        let s1 = Sec::<f32>::default(32);
+        let s2 = Sec::<f32>::default(32);
 
         assert_eq!(s1, s2);
         assert_eq!(s2, s1);
@@ -192,8 +220,8 @@ mod tests {
 
     #[test]
     fn it_compares_inequality() {
-        let s1 = Sec::<f64>::random(2);
-        let s2 = Sec::<f64>::random(2);
+        let s1 = Sec::<u16>::random(2);
+        let s2 = Sec::<u16>::random(2);
 
         assert!(s1 != s2);
         assert!(s2 != s1);
@@ -202,8 +230,8 @@ mod tests {
 
     #[test]
     fn it_compares_inequality_on_length() {
-        let s1 = Sec::<u8>::new(1);
-        let s2 = Sec::<u8>::new(2);
+        let s1 = Sec::<u8>::default(1);
+        let s2 = Sec::<u8>::default(2);
 
         assert!(s1 != s2);
         assert!(s2 != s1);
@@ -211,14 +239,14 @@ mod tests {
 
     #[test]
     fn it_starts_with_zero_refs() {
-        let sec = Sec::<u8>::new(10);
+        let sec = Sec::<u8>::default(10);
 
         assert_eq!(0, sec.refs.get());
     }
 
     #[test]
     fn it_tracks_ref_counts_accurately() {
-        let mut sec = Sec::<u8>::new(10);
+        let mut sec = Sec::<u8>::default(10);
 
         {
             sec.read(); sec.read(); sec.read();
@@ -240,7 +268,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn it_doesnt_allow_multiple_writers() {
-        let mut sec = Sec::<u64>::new(1);
+        let mut sec = Sec::<u64>::default(1);
 
         sec.write();
         sec.write();
@@ -249,7 +277,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn it_doesnt_allow_different_access_types() {
-        let mut sec = Sec::<u8>::new(5);
+        let mut sec = Sec::<u8>::default(5);
 
         sec.read();
         sec.write();
@@ -258,7 +286,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn it_panics_if_dropped_with_outstanding_refs() {
-        let sec = Sec::<f64>::new(1);
+        let sec = Sec::<f64>::default(1);
 
         sec.read();
     }
@@ -266,7 +294,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn it_panics_if_released_too_often() {
-        let sec = Sec::<u32>::new(10000);
+        let sec = Sec::<u32>::default(10000);
 
         sec.read();
         sec.lock();

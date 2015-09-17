@@ -1,7 +1,6 @@
+use marker::{Randomizable, Zeroable};
 use refs::{Ref, RefMut};
 use sec::Sec;
-
-use std::borrow::BorrowMut;
 
 /// A type that wraps allocated memory suitable for cryptographic
 /// secrets.
@@ -13,15 +12,15 @@ use std::borrow::BorrowMut;
 ///
 /// # Examples
 ///
-/// Random secrets:
+/// Generating cryptographic keys:
 ///
 /// ```
 /// use secrets::Secret;
 ///
-/// let secret   = Secret::random(32);
+/// let secret   = Secret::<[u8; 32]>::random();
 /// let secret_r = secret.borrow();
 ///
-/// println!("{:?}", secret_r.as_slice());
+/// println!("{:?}", secret_r);
 /// ```
 ///
 /// Secrets from existing mutable data:
@@ -29,26 +28,37 @@ use std::borrow::BorrowMut;
 /// ```
 /// use secrets::Secret;
 ///
-/// let mut string   = "string".to_string();
-/// let     secret   = Secret::from(unsafe { string.as_mut_vec() });
+/// // static data for the test; static data *can't* be wiped, but
+/// // copies of it will be
+/// let reference : &'static [u8; 4] = b"\xfa\x12\x00\xd9";
+/// let zeroes    : &'static [u8; 4] = b"\x00\x00\x00\x00";
+///
+/// let mut bytes    = reference.clone();
+/// let     secret   = Secret::from(&mut bytes);
 /// let     secret_r = secret.borrow();
 ///
-/// assert_eq!("\0\0\0\0\0\0", string);
-/// assert_eq!(b"string",      secret_r.as_slice());
+/// assert_eq!(*reference, *secret_r);
+/// assert_eq!(*zeroes,    bytes);
 /// ```
 ///
-/// Secrets as pointers:
+/// Accessing array contents through pointers:
 ///
 /// ```
 /// use secrets::Secret;
 /// use std::ptr;
 ///
-/// let mut secret   = Secret::bytes(4);
+/// let mut secret   = unsafe { Secret::<[u8; 4]>::new() };
 /// let mut secret_w = secret.borrow_mut();
 ///
-/// unsafe { ptr::write_bytes(secret_w.as_mut_ptr(), 0xff, secret_w.len()) };
+/// unsafe {
+///     ptr::write_bytes(
+///         secret_w.as_mut_ptr(),
+///         0xd0,
+///         secret_w.len(),
+///     );
+/// }
 ///
-/// assert_eq!([0xff, 0xff, 0xff, 0xff], secret_w.as_slice());
+/// assert_eq!(*b"\xd0\xd0\xd0\xd0", *secret_w);
 /// ```
 ///
 #[derive(Debug)]
@@ -56,98 +66,50 @@ pub struct Secret<T> {
     sec: Sec<T>,
 }
 
-impl<'a, T> From<&'a mut T> for Secret<u8> where T: BorrowMut<[u8]> {
-    fn from(bytes: &'a mut T) -> Secret<u8> {
-        Secret { sec: Sec::from(bytes.borrow_mut()) }
-    }
+impl<T> PartialEq for Secret<T> { fn eq(&self, s: &Self) -> bool { self.sec == s.sec } }
+impl<T> Eq        for Secret<T> {}
+
+impl<'a, T> From<&'a mut T> for Secret<T> where T: Zeroable {
+    /// Moves the contents of `data` into a `Secret` and zeroes out
+    /// the contents of `data`.
+    fn from(data: &mut T) -> Self { Secret { sec: Sec::from(data) } }
 }
 
-impl<T> PartialEq for Secret<T> {
-    fn eq(&self, other: &Secret<T>) -> bool {
-        self.sec == other.sec
-    }
+impl<T> Default for Secret<T> where T: Default {
+    /// Creates a new `Secret` with the default value for `T`.
+    fn default() -> Self { Secret { sec: Sec::default(1) } }
 }
 
-impl<T> Eq for Secret<T> {}
+impl<T> Secret<T> where T: Randomizable {
+    /// Creates a new `Secret` capable of storing an object of type `T`
+    /// and initialized with a cryptographically random value.
+    pub fn random() -> Self { Secret { sec: Sec::random(1) } }
+}
 
-impl Secret<u8> {
-    /// Creates a new Secret capable of storing `len` bytes.
-    ///
-    /// By default, the allocated region is filled with 0xd0 bytes in
-    /// order to help catch bugs due to uninitialized data.
-    pub fn bytes(len: usize) -> Self {
-        Secret::new(len)
-    }
-
-    /// Creates a new Secret filled with `len` bytes of
-    /// cryptographically random data.
-    pub fn random(len: usize) -> Self {
-        Secret { sec: Sec::random(len) }
-    }
+impl<T> Secret<T> where T: Zeroable {
+    /// Creates a new `Secret` capable of storing an object of type `T`
+    /// and initialized to all zeroes.
+    pub fn zero() -> Self { Secret { sec: Sec::zero(1) } }
 }
 
 impl<T> Secret<T> {
-    /// Creates a new Secret capable of storing `len` elements of type
-    /// `T`.
+    /// Creates a new `Secret` capable of storing an object of type `T`.
     ///
     /// By default, the allocated region is filled with 0xd0 bytes in
-    /// order to help catch bugs due to uninitialized data.
-    pub fn new(len: usize) -> Self {
-        Secret { sec: Sec::new(len) }
-    }
+    /// order to help catch bugs due to uninitialized data. This
+    /// method is marked as unsafe because filling an arbitrary type
+    /// with garbage data is undefined behavior.
+    #[allow(unsafe_code)]
+    pub unsafe fn new() -> Self { Secret { sec: Sec::new(1) } }
 
-    /// Returns the number of elements in the Secret.
-    pub fn len(&self) -> usize { self.sec.len() }
-
-    /// Returns a `Ref<T>` from which elements in the `Secret` can be
-    /// safely read from, via either pointer or slice semantics.
-    pub fn borrow(&self) -> Ref<T> {
-        Ref::new(&self.sec)
-    }
+    /// Returns the size in bytes of the data contained in the `Secret`
+    pub fn size(&self) -> usize { self.sec.size() }
 
     /// Returns a `Ref<T>` from which elements in the `Secret` can be
-    /// safely read from or written to, via either pointer or slice
-    /// semantics.
-    pub fn borrow_mut(&mut self) -> RefMut<T> {
-        RefMut::new(&mut self.sec)
-    }
-}
+    /// safely read from.
+    pub fn borrow(&self) -> Ref<T> { Ref::new(&self.sec) }
 
-#[cfg(test)]
-mod tests {
-    #![allow(unsafe_code)]
-    use super::Secret;
-
-    #[test]
-    fn it_creates_byte_buffers() {
-        let secret = Secret::bytes(1397);
-
-        assert_eq!(1397, secret.len());
-    }
-
-    #[test]
-    fn it_creates_random_byte_buffers() {
-        let secret_1 = Secret::random(128);
-        let secret_2 = Secret::random(128);
-
-        // if this ever fails, modern crypto is doomed
-        assert!(secret_1 != secret_2);
-    }
-
-    #[test]
-    fn it_copies_input_memory() {
-        let mut string   = "string".to_string();
-        let     secret   = Secret::from(unsafe { string.as_mut_vec() });
-        let     secret_r = secret.borrow();
-
-        assert_eq!(b"string", secret_r.as_slice());
-    }
-
-    #[test]
-    fn it_zeroes_out_input_memory() {
-        let mut string = "string".to_string();
-        let     _      = Secret::from(unsafe { string.as_mut_vec() });
-
-        assert_eq!("\0\0\0\0\0\0", string);
-    }
+    /// Returns a `Ref<T>` from which elements in the `Secret` can be
+    /// safely read from or written to.
+    pub fn borrow_mut(&mut self) -> RefMut<T> { RefMut::new(&mut self.sec) }
 }

@@ -18,32 +18,10 @@ Buffers allocated through this library:
 * immediately zero out the contents of the memory used to initialize them
 * immediately zero out the contents of their allocated memory when they leave scope
 
-Example
--------
+Examples
+--------
 
-Generating a random secret:
-
-```rust
-use secrets::Secret;
-
-let secret   = Secret::random(32);
-let secret_r = secret.borrow();
-
-println!("{:?}", secret_r.as_slice());
-```
-
-Creating a secret from existing data:
-
-```rust
-use secrets::Secret;
-
-let mut string   = "password".to_string();
-let     secret   = Secret::from(unsafe { string.as_mut_vec() });
-let     secret_r = secret.borrow();
-
-println!("{}",   string);              // NUL bytes
-println!("{:?}", secret_r.as_slice()); // b"string"
-```
+TODO: rewrite based on new API
 
 Documentation
 -------------

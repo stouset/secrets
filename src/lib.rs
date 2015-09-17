@@ -28,10 +28,12 @@
 
 extern crate libc;
 
+mod marker;
 mod refs;
 mod sec;
 mod secret;
 mod sodium;
 
+pub use marker::{Randomizable, Zeroable};
 pub use refs::{Ref, RefMut};
 pub use secret::Secret;
