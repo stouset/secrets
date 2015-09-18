@@ -111,14 +111,14 @@ impl<T> Sec<T> where T: Randomizable {
 
 impl<T> Sec<T> where T: Default {
     pub fn default(len: usize) -> Self {
-        let mut sec     : Sec<T>;
-        let     default : T = T::default();
+        let mut sec;
+        let     default = T::default();
 
         unsafe {
             sec = Sec::new(len);
 
             sec.write();
-            for i in 1..len {
+            for i in 0..len {
                 ptr::copy_nonoverlapping(&default, sec.ptr.offset(i as isize), 1);
             }
             sec.lock();

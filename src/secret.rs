@@ -61,6 +61,27 @@ use sec::Sec;
 /// assert_eq!(*b"\xd0\xd0\xd0\xd0", *secret_w);
 /// ```
 ///
+/// Wrapping custom struct types:
+///
+/// ```
+/// use secrets::{Secret, Zeroable};
+///
+/// #[derive(Debug)]
+/// #[derive(PartialEq)]
+/// struct SensitiveData { a: u64, b: u8 };
+///
+/// impl Zeroable for SensitiveData {};
+/// impl Default  for SensitiveData {
+///     fn default() -> Self { SensitiveData { a: 100, b: 255 } }
+/// }
+///
+/// let zeroed  = Secret::<SensitiveData>::zero();
+/// let default = Secret::<SensitiveData>::default();
+///
+/// assert_eq!(SensitiveData { a: 0, b: 0 }, *zeroed .borrow());
+/// assert_eq!(SensitiveData::default(),     *default.borrow());
+/// ```
+///
 #[derive(Debug)]
 pub struct Secret<T> {
     sec: Sec<T>,
