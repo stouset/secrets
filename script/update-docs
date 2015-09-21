@@ -1,10 +1,10 @@
 #!/bin/sh -e
 
-DOC_DIR=target/doc
-
-GIT_DIR=../../.git
 GIT_DOC_BRANCH=gh-pages
 GIT_REMOTE=origin
+
+CARGO_DOC_DIR=target/doc
+GIT_DIR=../../.git
 GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 GIT_REV=$(git rev-parse HEAD | tr -d '\n')
 GIT_AUTHOR_NAME=$(git show -s --format='%an' $GIT_REV)
@@ -14,9 +14,9 @@ GIT_VERSION=$(git --version)
 cargo doc --no-deps
 git fetch $GIT_REMOTE ${GIT_DOC_BRANCH}:refs/remotes/origin/$GIT_DOC_BRANCH
 git checkout -b $GIT_DOC_BRANCH origin/$GIT_DOC_BRANCH
-cp index.html $DOC_DIR
+cp index.html $CARGO_DOC_DIR
 
-cd $DOC_DIR
+cd $CARGO_DOC_DIR
 git --git-dir $GIT_DIR config user.name "$GIT_AUTHOR_NAME"
 git --git-dir $GIT_DIR config user.email "$GIT_AUTHOR_EMAIL"
 git --git-dir $GIT_DIR add --all .
