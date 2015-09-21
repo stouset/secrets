@@ -23,29 +23,29 @@ pub struct RefMut<'a, T: 'a> {
     sec: &'a mut Sec<T>,
 }
 
-impl<'a, T: 'a> Drop for Ref<'a, T> {
+impl<'a, T> Drop for Ref<'a, T> {
     fn drop(&mut self) { self.sec.lock(); }
 }
 
-impl<'a, T: 'a> Drop for RefMut<'a, T> {
+impl<'a, T> Drop for RefMut<'a, T> {
     fn drop(&mut self) { self.sec.lock(); }
 }
 
-impl<'a, T: 'a> Deref for Ref<'a, T> {
+impl<'a, T> Deref for Ref<'a, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
 }
 
-impl<'a, T: 'a> Deref for RefMut<'a, T> {
+impl<'a, T> Deref for RefMut<'a, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
 }
 
-impl<'a, T: 'a> DerefMut for RefMut<'a, T> {
+impl<'a, T> DerefMut for RefMut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target { (*self.sec).borrow_mut() }
 }
 
-impl<'a, T: 'a> Ref<'a, T> {
+impl<'a, T> Ref<'a, T> {
     #[doc(hidden)]
     pub fn new(sec: &Sec<T>) -> Ref<T> {
         sec.read();
@@ -53,7 +53,7 @@ impl<'a, T: 'a> Ref<'a, T> {
     }
 }
 
-impl<'a, T: 'a> RefMut<'a, T> {
+impl<'a, T> RefMut<'a, T> {
     #[doc(hidden)]
     pub fn new(sec: &mut Sec<T>) -> RefMut<T> {
         sec.write();
