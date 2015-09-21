@@ -1,6 +1,8 @@
 use marker::{Randomizable, Zeroable};
-use refs::{Ref, RefMut};
 use sec::Sec;
+
+use std::borrow::{Borrow, BorrowMut};
+use std::ops::{Deref, DerefMut};
 
 /// A type that wraps allocated memory suitable for cryptographic
 /// secrets.
@@ -33,7 +35,7 @@ use sec::Sec;
 /// let reference : &'static [u8; 4] = b"\xfa\x12\x00\xd9";
 /// let zeroes    : &'static [u8; 4] = b"\x00\x00\x00\x00";
 ///
-/// let mut bytes    = reference.clone();
+/// let mut bytes    = *reference;
 /// let     secret   = Secret::from(&mut bytes);
 /// let     secret_r = secret.borrow();
 ///
@@ -133,4 +135,52 @@ impl<T> Secret<T> {
     /// Returns a `Ref<T>` from which elements in the `Secret` can be
     /// safely read from or written to.
     pub fn borrow_mut(&mut self) -> RefMut<T> { RefMut::new(&mut self.sec) }
+}
+
+/// Wraps an immutably borrowed reference to the contents of a `Secret`.
+#[derive(Debug)]
+pub struct Ref<'a, T: 'a> {
+    sec: &'a Sec<T>,
+}
+
+/// Wraps an mutably borrowed reference to the contents of a `Secret`.
+#[derive(Debug)]
+pub struct RefMut<'a, T: 'a> {
+    sec: &'a mut Sec<T>,
+}
+
+impl<'a, T> Drop for Ref<'a, T> {
+    fn drop(&mut self) { self.sec.lock(); }
+}
+
+impl<'a, T> Drop for RefMut<'a, T> {
+    fn drop(&mut self) { self.sec.lock(); }
+}
+
+impl<'a, T> Deref for Ref<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
+}
+
+impl<'a, T> Deref for RefMut<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
+}
+
+impl<'a, T> DerefMut for RefMut<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target { (*self.sec).borrow_mut() }
+}
+
+impl<'a, T> Ref<'a, T> {
+    fn new(sec: &Sec<T>) -> Ref<T> {
+        sec.read();
+        Ref { sec: sec }
+    }
+}
+
+impl<'a, T> RefMut<'a, T> {
+    fn new(sec: &mut Sec<T>) -> RefMut<T> {
+        sec.write();
+        RefMut { sec: sec }
+    }
 }

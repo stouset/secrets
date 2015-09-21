@@ -10,6 +10,7 @@ use std::cell::Cell;
 use std::fmt::{self, Debug};
 use std::mem;
 use std::ptr;
+use std::slice;
 use std::thread;
 
 #[derive(Copy)]
@@ -77,19 +78,23 @@ impl<T> BorrowMut<T> for Sec<T> {
     fn borrow_mut(&mut self) -> &mut T { unsafe { &mut *self.ptr } }
 }
 
+impl<T> Borrow<[T]> for Sec<T> {
+    fn borrow(&self) -> &[T] { unsafe { slice::from_raw_parts(self.ptr, self.len) } }
+}
+
+impl<T> BorrowMut<[T]> for Sec<T> {
+    fn borrow_mut(&mut self) -> &mut [T] { unsafe { slice::from_raw_parts_mut(self.ptr, self.len) } }
+}
+
 impl<'a, T> From<&'a mut T> for Sec<T> where T: Zeroable {
     fn from(data: &mut T) -> Self {
-        let mut sec;
+        Self::from_raw_parts(data, 1)
+    }
+}
 
-        unsafe {
-            sec = Sec::new(1);
-
-            sec.write();
-            sodium::memmove(data, sec.ptr, 1);
-            sec.lock();
-        }
-
-        sec
+impl<'a, T> From<&'a mut [T]> for Sec<T> where T: Zeroable {
+    fn from(data: &mut [T]) -> Self {
+        Self::from_raw_parts(data.as_mut_ptr(), data.len())
     }
 }
 
@@ -137,6 +142,20 @@ impl<T> Sec<T> where T: Zeroable {
 
             sec.write();
             sodium::memzero(sec.ptr, sec.len);
+            sec.lock();
+        }
+
+        sec
+    }
+
+    fn from_raw_parts(ptr: *mut T, len: usize) -> Self {
+        let mut sec;
+
+        unsafe {
+            sec = Sec::new(len);
+
+            sec.write();
+            sodium::memmove(ptr, sec.ptr, sec.len);
             sec.lock();
         }
 

@@ -29,11 +29,11 @@
 extern crate libc;
 
 mod marker;
-mod refs;
 mod sec;
 mod secret;
+mod secret_vec;
 mod sodium;
 
 pub use marker::{Randomizable, Zeroable};
-pub use refs::{Ref, RefMut};
-pub use secret::Secret;
+pub use secret::{Secret, Ref, RefMut};
+pub use secret_vec::{SecretVec, VecRef, VecRefMut};
