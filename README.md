@@ -21,7 +21,29 @@ Buffers allocated through this library:
 Examples
 --------
 
-TODO: rewrite based on new API
+Generating cryptographic keys:
+
+```
+use secrets::Secret;
+
+let secret   = Secret::<[u8; 32]>::random();
+let secret_r = secret.borrow();
+
+println!("{:?}", secret_r);
+```
+
+Instantiating a SecretVec from existing mutable data:
+
+```
+use secrets::SecretVec;
+
+let mut bytes  = *b"\xfa\x12\x00\xd9";
+let     zeroes = *b"\x00\x00\x00\x00";
+
+let secret = SecretVec::from(&mut bytes[..]);
+
+assert_eq!(zeroes, bytes);
+```
 
 Documentation
 -------------
