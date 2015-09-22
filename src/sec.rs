@@ -43,7 +43,7 @@ impl<T> Drop for Sec<T> {
 
 impl<T> Debug for Sec<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "{{ {} bytes redacted }}", self.len)
+        write!(fmt, "{{ {} bytes redacted }}", self.size())
     }
 }
 
