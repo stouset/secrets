@@ -100,71 +100,36 @@ impl<'a, T> From<&'a mut [T]> for Sec<T> where T: Zeroable {
 
 impl<T> Sec<T> where T: Randomizable {
     pub fn random(len: usize) -> Self {
-        let mut sec;
-
-        unsafe {
-            sec = Sec::new(len);
-
-            sec.write();
-            sodium::random(sec.ptr, sec.len);
-            sec.lock();
-        }
-
-        sec
+        unsafe { Sec::new(len, |sec| sodium::random(sec.ptr, sec.len)) }
     }
 }
 
 impl<T> Sec<T> where T: Default {
     pub fn default(len: usize) -> Self {
-        let mut sec;
-        let     default = T::default();
-
         unsafe {
-            sec = Sec::new(len);
+            Sec::new(len, |sec| {
+                let default = T::default();
 
-            sec.write();
-            for i in 0..len {
-                ptr::copy_nonoverlapping(&default, sec.ptr.offset(i as isize), 1);
-            }
-            sec.lock();
+                for i in 0..len {
+                    ptr::copy_nonoverlapping(&default, sec.ptr.offset(i as isize), 1);
+                }
+            })
         }
-
-        sec
     }
 }
 
 impl<T> Sec<T> where T: Zeroable {
     pub fn zero(len: usize) -> Self {
-        let mut sec : Sec<T>;
-
-        unsafe {
-            sec = Sec::new(len);
-
-            sec.write();
-            sodium::memzero(sec.ptr, sec.len);
-            sec.lock();
-        }
-
-        sec
+        unsafe { Sec::new(len, |sec| sodium::memzero(sec.ptr, sec.len)) }
     }
 
     fn from_raw_parts(ptr: *mut T, len: usize) -> Self {
-        let mut sec;
-
-        unsafe {
-            sec = Sec::new(len);
-
-            sec.write();
-            sodium::memmove(ptr, sec.ptr, sec.len);
-            sec.lock();
-        }
-
-        sec
+        unsafe { Sec::new(len, |sec| sodium::memmove(ptr, sec.ptr, sec.len)) }
     }
 }
 
 impl<T> Sec<T> {
-    pub unsafe fn new(len: usize) -> Self {
+    pub unsafe fn uninitialized(len: usize) -> Self {
         sodium::init();
 
         let sec = Sec {
@@ -174,6 +139,15 @@ impl<T> Sec<T> {
             refs: Cell::new(1)
         };
 
+        sec.lock();
+        sec
+    }
+
+    pub unsafe fn new<F>(len: usize, init: F) -> Self where F: Fn(&mut Sec<T>) {
+        let mut sec = Self::uninitialized(len);
+
+        sec.write();
+        init(&mut sec);
         sec.lock();
 
         sec
@@ -227,6 +201,29 @@ fn mprotect<T>(ptr: *const T, prot: Prot) {
 #[cfg(test)]
 mod tests {
     use super::Sec;
+
+    use std::borrow::Borrow;
+    use std::ptr;
+
+    #[test]
+    fn it_allows_custom_initialization() {
+        let s = unsafe { Sec::<u8>::new(1, |sec| {
+            ptr::write(sec.ptr, 4);
+        } ) };
+
+        s.read();
+        assert_eq!(*b"\x04", s.borrow());
+        s.lock();
+    }
+
+    #[test]
+    fn it_initializes_with_zeroes() {
+        let s = Sec::<u8>::zero(4);
+
+        s.read();
+        assert_eq!(*b"\x00\x00\x00\x00", s.borrow());
+        s.lock();
+    }
 
     #[test]
     fn it_compares_equality() {

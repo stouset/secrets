@@ -125,7 +125,20 @@ impl<T> SecretVec<T> {
     /// method is marked as unsafe because filling an arbitrary type
     /// with garbage data is undefined behavior.
     #[allow(unsafe_code)]
-    pub unsafe fn uninitialized(len: usize) -> Self { SecretVec { sec: Sec::new(len) } }
+    pub unsafe fn uninitialized(len: usize) -> Self { SecretVec { sec: Sec::uninitialized(len) } }
+
+    /// Creates and initializes a new `SecretVec` capable of storing
+    /// an object of type `T`.
+    ///
+    /// Initialization is handled by a closure passed to method, which
+    /// accepts a reference to the object to be initialized. The data
+    /// in this reference will be uninitialized until written to, so
+    /// care must be taken to initialize its memory without reading
+    /// from it to avoid undefined behavior.
+    #[allow(unsafe_code)]
+    pub unsafe fn new<F>(len: usize, init: F) -> Self where F: Fn(&mut T) {
+        SecretVec { sec: Sec::<T>::new(len, |sec| init(sec.borrow_mut())) }
+    }
 
     /// Returns the number of elements in the `SecretVec`.
     pub fn len(&self)  -> usize { self.sec.len() }
