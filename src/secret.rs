@@ -49,7 +49,7 @@ use std::ops::{Deref, DerefMut};
 /// use secrets::Secret;
 /// use std::ptr;
 ///
-/// let mut secret   = unsafe { Secret::<[u8; 4]>::new() };
+/// let mut secret   = unsafe { Secret::<[u8; 4]>::uninitialized() };
 /// let mut secret_w = secret.borrow_mut();
 ///
 /// unsafe {
@@ -123,7 +123,7 @@ impl<T> Secret<T> {
     /// method is marked as unsafe because filling an arbitrary type
     /// with garbage data is undefined behavior.
     #[allow(unsafe_code)]
-    pub unsafe fn new() -> Self { Secret { sec: Sec::new(1) } }
+    pub unsafe fn uninitialized() -> Self { Secret { sec: Sec::new(1) } }
 
     /// Returns the size in bytes of the data contained in the `Secret`
     pub fn size(&self) -> usize { self.sec.size() }

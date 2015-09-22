@@ -49,7 +49,7 @@ use std::ops::{Deref, DerefMut};
 /// use secrets::SecretVec;
 /// use std::ptr;
 ///
-/// let mut secret   = unsafe { SecretVec::<u8>::new(4) };
+/// let mut secret   = unsafe { SecretVec::<u8>::uninitialized(4) };
 /// let mut secret_w = secret.borrow_mut();
 ///
 /// unsafe {
@@ -125,7 +125,7 @@ impl<T> SecretVec<T> {
     /// method is marked as unsafe because filling an arbitrary type
     /// with garbage data is undefined behavior.
     #[allow(unsafe_code)]
-    pub unsafe fn new(len: usize) -> Self { SecretVec { sec: Sec::new(len) } }
+    pub unsafe fn uninitialized(len: usize) -> Self { SecretVec { sec: Sec::new(len) } }
 
     /// Returns the number of elements in the `SecretVec`.
     pub fn len(&self)  -> usize { self.sec.len() }
