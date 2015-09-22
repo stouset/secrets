@@ -134,59 +134,59 @@ impl<T> SecretVec<T> {
     /// `SecretVec`
     pub fn size(&self) -> usize { self.sec.size() }
 
-    /// Returns a `VecRef<T>` from which elements in the `SecretVec` can
+    /// Returns a `RefVec<T>` from which elements in the `SecretVec` can
     /// be safely read from using slice semantics.
-    pub fn borrow(&self) -> VecRef<T> { VecRef::new(&self.sec) }
+    pub fn borrow(&self) -> RefVec<T> { RefVec::new(&self.sec) }
 
-    /// Returns a `RefMut<T>` from which elements in the `SecretVec` can
+    /// Returns a `RefVecMut<T>` from which elements in the `SecretVec` can
     /// be safely read from or written to using slice semantics.
-    pub fn borrow_mut(&mut self) -> VecRefMut<T> { VecRefMut::new(&mut self.sec) }
+    pub fn borrow_mut(&mut self) -> RefVecMut<T> { RefVecMut::new(&mut self.sec) }
 }
 
 /// Wraps an immutably borrowed reference to the contents of a `SecretVec`.
 #[derive(Debug)]
-pub struct VecRef<'a, T: 'a> {
+pub struct RefVec<'a, T: 'a> {
     sec: &'a Sec<T>,
 }
 
 /// Wraps an mutably borrowed reference to the contents of a `SecretVec`.
 #[derive(Debug)]
-pub struct VecRefMut<'a, T: 'a> {
+pub struct RefVecMut<'a, T: 'a> {
     sec: &'a mut Sec<T>,
 }
 
-impl<'a, T> Drop for VecRef<'a, T> {
+impl<'a, T> Drop for RefVec<'a, T> {
     fn drop(&mut self) { self.sec.lock(); }
 }
 
-impl<'a, T> Drop for VecRefMut<'a, T> {
+impl<'a, T> Drop for RefVecMut<'a, T> {
     fn drop(&mut self) { self.sec.lock(); }
 }
 
-impl<'a, T> Deref for VecRef<'a, T> {
+impl<'a, T> Deref for RefVec<'a, T> {
     type Target = [T];
     fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
 }
 
-impl<'a, T> Deref for VecRefMut<'a, T> {
+impl<'a, T> Deref for RefVecMut<'a, T> {
     type Target = [T];
     fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
 }
 
-impl<'a, T> DerefMut for VecRefMut<'a, T> {
+impl<'a, T> DerefMut for RefVecMut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target { (*self.sec).borrow_mut() }
 }
 
-impl<'a, T> VecRef<'a, T> {
-    fn new(sec: &Sec<T>) -> VecRef<T> {
+impl<'a, T> RefVec<'a, T> {
+    fn new(sec: &Sec<T>) -> RefVec<T> {
         sec.read();
-        VecRef { sec: sec }
+        RefVec { sec: sec }
     }
 }
 
-impl<'a, T> VecRefMut<'a, T> {
-    fn new(sec: &mut Sec<T>) -> VecRefMut<T> {
+impl<'a, T> RefVecMut<'a, T> {
+    fn new(sec: &mut Sec<T>) -> RefVecMut<T> {
         sec.write();
-        VecRefMut { sec: sec }
+        RefVecMut { sec: sec }
     }
 }

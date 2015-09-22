@@ -36,4 +36,4 @@ mod sodium;
 
 pub use marker::{Randomizable, Zeroable};
 pub use secret::{Secret, Ref, RefMut};
-pub use secret_vec::{SecretVec, VecRef, VecRefMut};
+pub use secret_vec::{SecretVec, RefVec, RefVecMut};
