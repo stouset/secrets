@@ -143,7 +143,7 @@ impl<T> Sec<T> {
         sec
     }
 
-    pub unsafe fn new<F>(len: usize, init: F) -> Self where F: Fn(&mut Sec<T>) {
+    pub unsafe fn new<F>(len: usize, init: F) -> Self where F: FnOnce(&mut Sec<T>) {
         let mut sec = Self::uninitialized(len);
 
         sec.write();

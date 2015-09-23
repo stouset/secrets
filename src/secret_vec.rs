@@ -136,7 +136,7 @@ impl<T> SecretVec<T> {
     /// care must be taken to initialize its memory without reading
     /// from it to avoid undefined behavior.
     #[allow(unsafe_code)]
-    pub unsafe fn new<F>(len: usize, init: F) -> Self where F: Fn(&mut T) {
+    pub unsafe fn new<F>(len: usize, init: F) -> Self where F: FnOnce(&mut T) {
         SecretVec { sec: Sec::<T>::new(len, |sec| init(sec.borrow_mut())) }
     }
 

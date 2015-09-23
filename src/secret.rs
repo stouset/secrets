@@ -134,7 +134,7 @@ impl<T> Secret<T> {
     /// care must be taken to initialize its memory without reading
     /// from it to avoid undefined behavior.
     #[allow(unsafe_code)]
-    pub unsafe fn new<F>(init: F) -> Self where F: Fn(&mut T) {
+    pub unsafe fn new<F>(init: F) -> Self where F: FnOnce(&mut T) {
         Secret { sec: Sec::<T>::new(1, |sec| init(sec.borrow_mut())) }
     }
 
