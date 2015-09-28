@@ -13,7 +13,7 @@ static INIT: Once = ONCE_INIT;
 extern {
     fn sodium_init() -> c_int;
 
-    fn sodium_malloc(size: size_t) -> *mut c_void;
+    fn sodium_malloc(len: size_t) -> *mut c_void;
     fn sodium_free(ptr: *mut c_void);
 
     fn sodium_memzero(ptr: *mut c_void, len: size_t);
@@ -36,8 +36,8 @@ pub fn init() {
 
 pub fn malloc<T>(count: usize) -> *mut T {
     unsafe {
-        let size = size_of::<T>(count);
-        let ptr  = sodium_malloc(size);
+        let len = size_of::<T>(count);
+        let ptr = sodium_malloc(len);
 
         if ptr.is_null() {
             panic!("sodium: couldn't allocate memory")
