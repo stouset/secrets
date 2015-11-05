@@ -1,6 +1,15 @@
 language: rust
 sudo:     false
 
+rust:
+  - nightly
+  - beta
+  - stable
+
+matrix:
+  allow_failures:
+    - rust: nightly
+
 addons:
   apt:
     sources:
