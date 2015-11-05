@@ -14,4 +14,8 @@ readme        = "README.md"
 keywords = [ "crypto", "cryptography", "allocator" ]
 
 [dependencies]
-libc = '~0.1'
+clippy = { version = "0.0.22", optional = true }
+libc   = '~0.1'
+
+[features]
+default = []
