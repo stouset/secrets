@@ -10,18 +10,26 @@ matrix:
   allow_failures:
     - rust: nightly
 
-addons:
-  apt:
-    sources:
-      - debian-sid
-    packages:
-      - libsodium-dev
+install:
+  - pip install 'travis-cargo<0.2' --user
+  - |
+      curl https://download.libsodium.org/libsodium/releases/LATEST.tar.gz | tar -xzf - &&
+      (cd libsodium-1.* && ./configure --prefix=$LOCAL_PATH && make check && make install)
 
-after_success: |
-  [ $TRAVIS_BRANCH       = master ] &&
-  [ $TRAVIS_PULL_REQUEST = false ]  &&
-  script/update-docs $TRAVIS_REPO_SLUG
+script: |
+  travis-cargo build &&
+  travis-cargo test  &&
+  travis-cargo bench &&
+  travis-cargo --only stable doc
+
+after_success:
+  - travis-cargo --only stable doc-upload
 
 env:
   global:
-    secure: UlGYL6Vcv6XpsId97Urb2xnitfYWa5Ar5gHFzS52yySnSKbQ5ViTAJ4PcIrXek2TInYTMn8Hj3teGsA+SQO2cyzwjNFaDr3JzVWbiWt5DQMVv6qeeZAOaKrBEAZPmYj/enP64yJNseV4SKAjL14ROjErijYpXUSfGMEyRfYH3zI=
+    - LOCAL_PATH=$HOME/.local
+    - PATH=$LOCAL_PATH/bin:$PATH
+    - LIBRARY_PATH=$LOCAL_PATH/lib:$LIBRARY_PATH
+    - LD_LIBRARY_PATH=$LOCAL_PATH/lib:$LD_LIBRARY_PATH
+    - TRAVIS_CARGO_NIGHTLY_FEATURE=clippy
+    - secure: UlGYL6Vcv6XpsId97Urb2xnitfYWa5Ar5gHFzS52yySnSKbQ5ViTAJ4PcIrXek2TInYTMn8Hj3teGsA+SQO2cyzwjNFaDr3JzVWbiWt5DQMVv6qeeZAOaKrBEAZPmYj/enP64yJNseV4SKAjL14ROjErijYpXUSfGMEyRfYH3zI=
