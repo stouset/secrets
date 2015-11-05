@@ -165,6 +165,10 @@ impl<T> Sec<T> {
         self.len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn size(&self) -> usize {
         self.len() * mem::size_of::<T>()
     }

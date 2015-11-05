@@ -159,6 +159,11 @@ impl<T> SecretVec<T> {
         self.sec.len()
     }
 
+    /// Returns whether or not the `SecretVec` is empty.
+    pub fn is_empty(&self) -> bool {
+        self.sec.is_empty()
+    }
+
     /// Returns the size in bytes of the data contained in the
     /// `SecretVec`
     pub fn size(&self) -> usize {
