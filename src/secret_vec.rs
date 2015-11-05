@@ -89,31 +89,43 @@ pub struct SecretVec<T> {
     sec: Sec<T>,
 }
 
-impl<T> PartialEq for SecretVec<T> { fn eq(&self, s: &Self) -> bool { self.sec == s.sec } }
+impl<T> PartialEq for SecretVec<T> {
+    fn eq(&self, s: &Self) -> bool {
+        self.sec == s.sec
+    }
+}
 impl<T> Eq        for SecretVec<T> {}
 
 impl<'a, T> From<&'a mut [T]> for SecretVec<T> where T: Zeroable {
     /// Moves the contents of `data` into a `SecretVec` and zeroes out
     /// the contents of `data`.
-    fn from(data: &mut [T]) -> Self { SecretVec { sec: Sec::from(data) } }
+    fn from(data: &mut [T]) -> Self {
+        SecretVec { sec: Sec::from(data) }
+    }
 }
 
 impl<T> SecretVec<T> where T: Default {
     /// Creates a new `SecretVec` filled with `len` of the default
     /// value for `T`.
-    pub fn default(len: usize) -> Self { SecretVec { sec: Sec::default(len) } }
+    pub fn default(len: usize) -> Self {
+        SecretVec { sec: Sec::default(len) }
+    }
 }
 
 impl<T> SecretVec<T> where T: Randomizable {
     /// Creates a new `SecretVec` filled with `len` cryptographically
     /// random objects of type `T`.
-    pub fn random(len: usize) -> Self { SecretVec { sec: Sec::random(len) } }
+    pub fn random(len: usize) -> Self {
+        SecretVec { sec: Sec::random(len) }
+    }
 }
 
 impl<T> SecretVec<T> where T: Zeroable {
     /// Creates a new `SecretVec` filled with `len` zeroed objects of
     /// type `T`.
-    pub fn zero(len: usize) -> Self { SecretVec { sec: Sec::zero(len) } }
+    pub fn zero(len: usize) -> Self {
+        SecretVec { sec: Sec::zero(len) }
+    }
 }
 
 impl<T> SecretVec<T> {
@@ -125,7 +137,9 @@ impl<T> SecretVec<T> {
     /// method is marked as unsafe because filling an arbitrary type
     /// with garbage data is undefined behavior.
     #[allow(unsafe_code)]
-    pub unsafe fn uninitialized(len: usize) -> Self { SecretVec { sec: Sec::uninitialized(len) } }
+    pub unsafe fn uninitialized(len: usize) -> Self {
+        SecretVec { sec: Sec::uninitialized(len) }
+    }
 
     /// Creates and initializes a new `SecretVec` capable of storing
     /// an object of type `T`.
@@ -141,19 +155,27 @@ impl<T> SecretVec<T> {
     }
 
     /// Returns the number of elements in the `SecretVec`.
-    pub fn len(&self)  -> usize { self.sec.len() }
+    pub fn len(&self) -> usize {
+        self.sec.len()
+    }
 
     /// Returns the size in bytes of the data contained in the
     /// `SecretVec`
-    pub fn size(&self) -> usize { self.sec.size() }
+    pub fn size(&self) -> usize {
+        self.sec.size()
+    }
 
     /// Returns a `RefVec<T>` from which elements in the `SecretVec` can
     /// be safely read from using slice semantics.
-    pub fn borrow(&self) -> RefVec<T> { RefVec::new(&self.sec) }
+    pub fn borrow(&self) -> RefVec<T> {
+        RefVec::new(&self.sec)
+    }
 
     /// Returns a `RefVecMut<T>` from which elements in the `SecretVec` can
     /// be safely read from or written to using slice semantics.
-    pub fn borrow_mut(&mut self) -> RefVecMut<T> { RefVecMut::new(&mut self.sec) }
+    pub fn borrow_mut(&mut self) -> RefVecMut<T> {
+        RefVecMut::new(&mut self.sec)
+    }
 }
 
 /// Wraps an immutably borrowed reference to the contents of a `SecretVec`.
@@ -169,25 +191,35 @@ pub struct RefVecMut<'a, T: 'a> {
 }
 
 impl<'a, T> Drop for RefVec<'a, T> {
-    fn drop(&mut self) { self.sec.lock(); }
+    fn drop(&mut self) {
+        self.sec.lock();
+    }
 }
 
 impl<'a, T> Drop for RefVecMut<'a, T> {
-    fn drop(&mut self) { self.sec.lock(); }
+    fn drop(&mut self) {
+        self.sec.lock();
+    }
 }
 
 impl<'a, T> Deref for RefVec<'a, T> {
     type Target = [T];
-    fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
+    fn deref(&self) -> &Self::Target {
+        (*self.sec).borrow()
+    }
 }
 
 impl<'a, T> Deref for RefVecMut<'a, T> {
     type Target = [T];
-    fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
+    fn deref(&self) -> &Self::Target {
+        (*self.sec).borrow()
+    }
 }
 
 impl<'a, T> DerefMut for RefVecMut<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target { (*self.sec).borrow_mut() }
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        (*self.sec).borrow_mut()
+    }
 }
 
 impl<'a, T> RefVec<'a, T> {

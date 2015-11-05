@@ -89,30 +89,42 @@ pub struct Secret<T> {
     sec: Sec<T>,
 }
 
-impl<T> PartialEq for Secret<T> { fn eq(&self, s: &Self) -> bool { self.sec == s.sec } }
+impl<T> PartialEq for Secret<T> {
+    fn eq(&self, s: &Self) -> bool {
+        self.sec == s.sec
+    }
+}
 impl<T> Eq        for Secret<T> {}
 
 impl<'a, T> From<&'a mut T> for Secret<T> where T: Zeroable {
     /// Moves the contents of `data` into a `Secret` and zeroes out
     /// the contents of `data`.
-    fn from(data: &mut T) -> Self { Secret { sec: Sec::from(data) } }
+    fn from(data: &mut T) -> Self {
+        Secret { sec: Sec::from(data) }
+    }
 }
 
 impl<T> Default for Secret<T> where T: Default {
     /// Creates a new `Secret` with the default value for `T`.
-    fn default() -> Self { Secret { sec: Sec::default(1) } }
+    fn default() -> Self {
+        Secret { sec: Sec::default(1) }
+    }
 }
 
 impl<T> Secret<T> where T: Randomizable {
     /// Creates a new `Secret` capable of storing an object of type `T`
     /// and initialized with a cryptographically random value.
-    pub fn random() -> Self { Secret { sec: Sec::random(1) } }
+    pub fn random() -> Self {
+        Secret { sec: Sec::random(1) }
+    }
 }
 
 impl<T> Secret<T> where T: Zeroable {
     /// Creates a new `Secret` capable of storing an object of type `T`
     /// and initialized to all zeroes.
-    pub fn zero() -> Self { Secret { sec: Sec::zero(1) } }
+    pub fn zero() -> Self {
+        Secret { sec: Sec::zero(1) }
+    }
 }
 
 impl<T> Secret<T> {
@@ -123,7 +135,9 @@ impl<T> Secret<T> {
     /// method is marked as unsafe because filling an arbitrary type
     /// with garbage data is undefined behavior.
     #[allow(unsafe_code)]
-    pub unsafe fn uninitialized() -> Self { Secret { sec: Sec::uninitialized(1) } }
+    pub unsafe fn uninitialized() -> Self {
+        Secret { sec: Sec::uninitialized(1) }
+    }
 
     /// Creates and initializes a new `Secret` capable of storing an
     /// object of type `T`.
@@ -139,15 +153,21 @@ impl<T> Secret<T> {
     }
 
     /// Returns the size in bytes of the data contained in the `Secret`
-    pub fn size(&self) -> usize { self.sec.size() }
+    pub fn size(&self) -> usize {
+        self.sec.size()
+    }
 
     /// Returns a `Ref<T>` from which elements in the `Secret` can be
     /// safely read from.
-    pub fn borrow(&self) -> Ref<T> { Ref::new(&self.sec) }
+    pub fn borrow(&self) -> Ref<T> {
+        Ref::new(&self.sec)
+    }
 
     /// Returns a `Ref<T>` from which elements in the `Secret` can be
     /// safely read from or written to.
-    pub fn borrow_mut(&mut self) -> RefMut<T> { RefMut::new(&mut self.sec) }
+    pub fn borrow_mut(&mut self) -> RefMut<T> {
+        RefMut::new(&mut self.sec)
+    }
 }
 
 /// Wraps an immutably borrowed reference to the contents of a `Secret`.
@@ -163,25 +183,35 @@ pub struct RefMut<'a, T: 'a> {
 }
 
 impl<'a, T> Drop for Ref<'a, T> {
-    fn drop(&mut self) { self.sec.lock(); }
+    fn drop(&mut self) {
+        self.sec.lock();
+    }
 }
 
 impl<'a, T> Drop for RefMut<'a, T> {
-    fn drop(&mut self) { self.sec.lock(); }
+    fn drop(&mut self) {
+        self.sec.lock();
+    }
 }
 
 impl<'a, T> Deref for Ref<'a, T> {
     type Target = T;
-    fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
+    fn deref(&self) -> &Self::Target {
+        (*self.sec).borrow()
+    }
 }
 
 impl<'a, T> Deref for RefMut<'a, T> {
     type Target = T;
-    fn deref(&self) -> &Self::Target { (*self.sec).borrow() }
+    fn deref(&self) -> &Self::Target {
+        (*self.sec).borrow()
+    }
 }
 
 impl<'a, T> DerefMut for RefMut<'a, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target { (*self.sec).borrow_mut() }
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        (*self.sec).borrow_mut()
+    }
 }
 
 impl<'a, T> Ref<'a, T> {

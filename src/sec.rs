@@ -27,7 +27,7 @@ pub struct Sec<T> {
     ptr:  *mut T,
     len:  usize,
     prot: Cell<Prot>,
-    refs: Cell<u8>
+    refs: Cell<u8>,
 }
 
 impl<T> Drop for Sec<T> {
@@ -62,7 +62,7 @@ impl<T> PartialEq for Sec<T> {
             ret = sodium::memcmp(s.ptr, self.ptr, len);
             s   .lock();
             self.lock();
-        };
+        }
 
         ret
     }
@@ -71,19 +71,27 @@ impl<T> PartialEq for Sec<T> {
 impl<T> Eq for Sec<T> {}
 
 impl<T> Borrow<T> for Sec<T> {
-    fn borrow(&self) -> &T { unsafe { &*self.ptr } }
+    fn borrow(&self) -> &T {
+        unsafe { &*self.ptr }
+    }
 }
 
 impl<T> BorrowMut<T> for Sec<T> {
-    fn borrow_mut(&mut self) -> &mut T { unsafe { &mut *self.ptr } }
+    fn borrow_mut(&mut self) -> &mut T {
+        unsafe { &mut *self.ptr }
+    }
 }
 
 impl<T> Borrow<[T]> for Sec<T> {
-    fn borrow(&self) -> &[T] { unsafe { slice::from_raw_parts(self.ptr, self.len) } }
+    fn borrow(&self) -> &[T] {
+        unsafe { slice::from_raw_parts(self.ptr, self.len) }
+    }
 }
 
 impl<T> BorrowMut<[T]> for Sec<T> {
-    fn borrow_mut(&mut self) -> &mut [T] { unsafe { slice::from_raw_parts_mut(self.ptr, self.len) } }
+    fn borrow_mut(&mut self) -> &mut [T] {
+        unsafe { slice::from_raw_parts_mut(self.ptr, self.len) }
+    }
 }
 
 impl<'a, T> From<&'a mut T> for Sec<T> where T: Zeroable {
@@ -136,7 +144,7 @@ impl<T> Sec<T> {
             ptr:  sodium::malloc(len),
             len:  len,
             prot: Cell::new(Prot::ReadOnly),
-            refs: Cell::new(1)
+            refs: Cell::new(1),
         };
 
         sec.lock();
@@ -153,12 +161,25 @@ impl<T> Sec<T> {
         sec
     }
 
-    pub fn len(&self)  -> usize { self.len }
-    pub fn size(&self) -> usize { self.len() * mem::size_of::<T>() }
+    pub fn len(&self) -> usize {
+        self.len
+    }
 
-    pub fn read(&self)      { self.retain(Prot::ReadOnly) }
-    pub fn write(&mut self) { self.retain(Prot::ReadWrite) }
-    pub fn lock(&self)      { self.release() }
+    pub fn size(&self) -> usize {
+        self.len() * mem::size_of::<T>()
+    }
+
+    pub fn read(&self) {
+        self.retain(Prot
+                    ::ReadOnly)
+    }
+    pub fn write(&mut self) {
+        self.retain(Prot::ReadWrite)
+    }
+
+    pub fn lock(&self) {
+        self.release()
+    }
 
     fn retain(&self, prot: Prot) {
         let refs = self.refs.get();
@@ -207,9 +228,11 @@ mod tests {
 
     #[test]
     fn it_allows_custom_initialization() {
-        let s = unsafe { Sec::<u8>::new(1, |sec| {
-            ptr::write(sec.ptr, 4);
-        } ) };
+        let s = unsafe {
+            Sec::<u8>::new(1, |sec| {
+                ptr::write(sec.ptr, 4);
+            })
+        };
 
         s.read();
         assert_eq!(*b"\x04", s.borrow());
