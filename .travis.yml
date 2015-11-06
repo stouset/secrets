@@ -17,6 +17,14 @@ addons:
     packages:
       - libsodium-dev
 
+before_script: |
+  [ $TRAVIS_RUST_VERSION = "nightly" ] && export TEST_FLAGS="--features clippy" || true
+
+script:
+  - cargo build --verbose
+  - cargo test  --verbose $TEST_FLAGS
+  - cargo bench --verbose
+
 after_success: |
   [ $TRAVIS_BRANCH       = master ] &&
   [ $TRAVIS_PULL_REQUEST = false ]  &&
