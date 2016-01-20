@@ -10,7 +10,7 @@ use libc::{c_void, c_int, size_t};
 static INIT: Once = ONCE_INIT;
 
 #[link(name="sodium")]
-extern {
+extern "C" {
     fn sodium_init() -> c_int;
 
     fn sodium_malloc(len: size_t) -> *mut c_void;

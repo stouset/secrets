@@ -94,9 +94,10 @@ impl<T> PartialEq for SecretVec<T> {
         self.sec == s.sec
     }
 }
-impl<T> Eq        for SecretVec<T> {}
+impl<T> Eq for SecretVec<T> {}
 
-impl<'a, T> From<&'a mut [T]> for SecretVec<T> where T: Zeroable {
+impl<'a, T> From<&'a mut [T]> for SecretVec<T> where T: Zeroable
+{
     /// Moves the contents of `data` into a `SecretVec` and zeroes out
     /// the contents of `data`.
     fn from(data: &mut [T]) -> Self {
@@ -104,7 +105,8 @@ impl<'a, T> From<&'a mut [T]> for SecretVec<T> where T: Zeroable {
     }
 }
 
-impl<T> SecretVec<T> where T: Default {
+impl<T> SecretVec<T> where T: Default
+{
     /// Creates a new `SecretVec` filled with `len` of the default
     /// value for `T`.
     pub fn default(len: usize) -> Self {
@@ -112,7 +114,8 @@ impl<T> SecretVec<T> where T: Default {
     }
 }
 
-impl<T> SecretVec<T> where T: Randomizable {
+impl<T> SecretVec<T> where T: Randomizable
+{
     /// Creates a new `SecretVec` filled with `len` cryptographically
     /// random objects of type `T`.
     pub fn random(len: usize) -> Self {
@@ -120,7 +123,8 @@ impl<T> SecretVec<T> where T: Randomizable {
     }
 }
 
-impl<T> SecretVec<T> where T: Zeroable {
+impl<T> SecretVec<T> where T: Zeroable
+{
     /// Creates a new `SecretVec` filled with `len` zeroed objects of
     /// type `T`.
     pub fn zero(len: usize) -> Self {
@@ -150,7 +154,9 @@ impl<T> SecretVec<T> {
     /// care must be taken to initialize its memory without reading
     /// from it to avoid undefined behavior.
     #[allow(unsafe_code)]
-    pub unsafe fn new<F>(len: usize, init: F) -> Self where F: FnOnce(&mut T) {
+    pub unsafe fn new<F>(len: usize, init: F) -> Self
+        where F: FnOnce(&mut T)
+    {
         SecretVec { sec: Sec::<T>::new(len, |sec| init(sec.borrow_mut())) }
     }
 
