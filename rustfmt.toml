@@ -1,0 +1,2 @@
+fn_brace_style   = "PreferSameLine"
+item_brace_style = "PreferSameLine"

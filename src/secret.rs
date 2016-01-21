@@ -94,10 +94,10 @@ impl<T> PartialEq for Secret<T> {
         self.sec == s.sec
     }
 }
+
 impl<T> Eq for Secret<T> {}
 
-impl<'a, T> From<&'a mut T> for Secret<T> where T: Zeroable
-{
+impl<'a, T: Zeroable> From<&'a mut T> for Secret<T> {
     /// Moves the contents of `data` into a `Secret` and zeroes out
     /// the contents of `data`.
     fn from(data: &mut T) -> Self {
@@ -105,16 +105,14 @@ impl<'a, T> From<&'a mut T> for Secret<T> where T: Zeroable
     }
 }
 
-impl<T> Default for Secret<T> where T: Default
-{
+impl<T: Default> Default for Secret<T> {
     /// Creates a new `Secret` with the default value for `T`.
     fn default() -> Self {
         Secret { sec: Sec::default(1) }
     }
 }
 
-impl<T> Secret<T> where T: Randomizable
-{
+impl<T: Randomizable> Secret<T> {
     /// Creates a new `Secret` capable of storing an object of type `T`
     /// and initialized with a cryptographically random value.
     pub fn random() -> Self {
@@ -122,8 +120,7 @@ impl<T> Secret<T> where T: Randomizable
     }
 }
 
-impl<T> Secret<T> where T: Zeroable
-{
+impl<T: Zeroable> Secret<T> {
     /// Creates a new `Secret` capable of storing an object of type `T`
     /// and initialized to all zeroes.
     pub fn zero() -> Self {
@@ -153,8 +150,7 @@ impl<T> Secret<T> {
     /// from it to avoid undefined behavior.
     #[allow(unsafe_code)]
     pub unsafe fn new<F>(init: F) -> Self
-        where F: FnOnce(&mut T)
-    {
+        where F: FnOnce(&mut T) {
         Secret { sec: Sec::<T>::new(1, |sec| init(sec.borrow_mut())) }
     }
 

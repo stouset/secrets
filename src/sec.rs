@@ -94,29 +94,25 @@ impl<T> BorrowMut<[T]> for Sec<T> {
     }
 }
 
-impl<'a, T> From<&'a mut T> for Sec<T> where T: Zeroable
-{
+impl<'a, T: Zeroable> From<&'a mut T> for Sec<T> {
     fn from(data: &mut T) -> Self {
         Self::from_raw_parts(data, 1)
     }
 }
 
-impl<'a, T> From<&'a mut [T]> for Sec<T> where T: Zeroable
-{
+impl<'a, T: Zeroable> From<&'a mut [T]> for Sec<T> {
     fn from(data: &mut [T]) -> Self {
         Self::from_raw_parts(data.as_mut_ptr(), data.len())
     }
 }
 
-impl<T> Sec<T> where T: Randomizable
-{
+impl<T: Randomizable> Sec<T> {
     pub fn random(len: usize) -> Self {
         unsafe { Sec::new(len, |sec| sodium::random(sec.ptr, sec.len)) }
     }
 }
 
-impl<T> Sec<T> where T: Default
-{
+impl<T: Default> Sec<T> {
     pub fn default(len: usize) -> Self {
         unsafe {
             Sec::new(len, |sec| {
@@ -130,8 +126,7 @@ impl<T> Sec<T> where T: Default
     }
 }
 
-impl<T> Sec<T> where T: Zeroable
-{
+impl<T: Zeroable> Sec<T> {
     pub fn zero(len: usize) -> Self {
         unsafe { Sec::new(len, |sec| sodium::memzero(sec.ptr, sec.len)) }
     }
@@ -157,8 +152,7 @@ impl<T> Sec<T> {
     }
 
     pub unsafe fn new<F>(len: usize, init: F) -> Self
-        where F: FnOnce(&mut Sec<T>)
-    {
+        where F: FnOnce(&mut Sec<T>) {
         let mut sec = Self::uninitialized(len);
 
         sec.write();
