@@ -1,4 +1,4 @@
-use marker::{Randomizable, Zeroable};
+use marker::{BytewiseEq, Randomizable, Zeroable};
 use sec::Sec;
 
 use std::borrow::{Borrow, BorrowMut};
@@ -89,13 +89,13 @@ pub struct Secret<T> {
     sec: Sec<T>,
 }
 
-impl<T> PartialEq for Secret<T> {
+impl<T: BytewiseEq> PartialEq for Secret<T> {
     fn eq(&self, s: &Self) -> bool {
         self.sec == s.sec
     }
 }
 
-impl<T> Eq for Secret<T> {}
+impl<T: BytewiseEq> Eq for Secret<T> {}
 
 impl<'a, T: Zeroable> From<&'a mut T> for Secret<T> {
     /// Moves the contents of `data` into a `Secret` and zeroes out
