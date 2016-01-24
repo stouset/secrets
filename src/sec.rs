@@ -56,13 +56,13 @@ impl<T: BytewiseEq> PartialEq for Sec<T> {
             return false;
         }
 
-        unsafe {
-            self.read();
-            s   .read();
-            ret = sodium::memcmp(s.ptr, self.ptr, len);
-            s   .lock();
-            self.lock();
-        }
+        self.read();
+        s   .read();
+
+        unsafe { ret = sodium::memcmp(s.ptr, self.ptr, len) };
+
+        s   .lock();
+        self.lock();
 
         ret
     }
