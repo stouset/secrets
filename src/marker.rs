@@ -1,9 +1,19 @@
+/// Types able to be compared bytewise for equality.
+///
+/// This probably ought to put a trait bound on Eq, as bytewise
+/// equality is an even stronger requirement than being an equivalence
+/// relation. However, Rust doesn't impl Eq on arrays with more than
+/// 32 entries, and we implement traits on everything up to 64
+/// entries.
+pub trait BytewiseEq {}
+
 /// Types able to be initialized with random data.
 pub trait Randomizable {}
 
 /// Types able to be initialized with zeroed data.
 pub trait Zeroable {}
 
+impl<T: BytewiseEq> BytewiseEq for [T] {}
 impl<T: Randomizable> Randomizable for [T] {}
 impl<T: Zeroable> Zeroable for [T] {}
 
@@ -11,17 +21,20 @@ macro_rules! impls {
     (array $($tt:tt)*) => { impls!{ [] $(($tt))* } };
     (tuple $($tt:tt)*) => { impls!{ () void $($tt)* } };
     (prim $($prim:ident)*) => {$(
+        impl BytewiseEq for $prim {}
         impl Randomizable for $prim {}
         impl Zeroable for $prim {}
     )*};
 
     ([] $(($n:expr))*) => {$(
+        impl<T: BytewiseEq> BytewiseEq for [T; $n] {}
         impl<T: Randomizable> Randomizable for [T; $n] {}
         impl<T: Zeroable> Zeroable for [T; $n] {}
     )*};
 
     (()) => { };
     (() $head:ident $($tail:ident)*) => {
+        impl<$($tail: BytewiseEq),*> BytewiseEq for ($($tail,)*) {}
         impl<$($tail: Randomizable),*> Randomizable for ($($tail,)*) {}
         impl<$($tail: Zeroable),*> Zeroable for ($($tail,)*) {}
         impls!{ () $($tail)* }

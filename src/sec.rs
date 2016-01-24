@@ -1,7 +1,7 @@
 // This comment prevents Emacs from thinking this file is executable
 #![allow(unsafe_code)]
 
-use marker::{Randomizable, Zeroable};
+use marker::{BytewiseEq, Randomizable, Zeroable};
 
 use sodium;
 
@@ -47,7 +47,7 @@ impl<T> Debug for Sec<T> {
     }
 }
 
-impl<T> PartialEq for Sec<T> {
+impl<T: BytewiseEq> PartialEq for Sec<T> {
     fn eq(&self, s: &Self) -> bool {
         let len = self.len;
         let ret;
@@ -68,7 +68,7 @@ impl<T> PartialEq for Sec<T> {
     }
 }
 
-impl<T> Eq for Sec<T> {}
+impl<T: BytewiseEq> Eq for Sec<T> {}
 
 impl<T> Borrow<T> for Sec<T> {
     fn borrow(&self) -> &T {
@@ -254,8 +254,8 @@ mod tests {
 
     #[test]
     fn it_compares_equality() {
-        let s1 = Sec::<f32>::default(32);
-        let s2 = Sec::<f32>::default(32);
+        let s1 = Sec::<i32>::default(32);
+        let s2 = Sec::<i32>::default(32);
 
         assert_eq!(s1, s2);
         assert_eq!(s2, s1);
