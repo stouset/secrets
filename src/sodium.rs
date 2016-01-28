@@ -47,8 +47,8 @@ pub fn malloc<T>(count: usize) -> *mut T {
     }
 }
 
-pub fn free<T>(ptr: *mut T) {
-    unsafe { sodium_free(ptr as *mut _) }
+pub unsafe fn free<T>(ptr: *mut T) {
+    sodium_free(ptr as *mut _)
 }
 
 pub unsafe fn memzero<T>(ptr: *mut T, count: usize) {

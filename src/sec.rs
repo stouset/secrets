@@ -37,7 +37,7 @@ impl<T> Drop for Sec<T> {
             debug_assert_eq!(Prot::NoAccess, self.prot.get());
         }
 
-        sodium::free(self.ptr)
+        unsafe { sodium::free(self.ptr) }
     }
 }
 
