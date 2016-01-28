@@ -7,13 +7,14 @@ use std::sync::{Once, ONCE_INIT};
 
 use libc::{c_void, c_int, size_t};
 
-static INIT: Once = ONCE_INIT;
+static     INIT:        Once = ONCE_INIT;
+static mut initialized: bool = false;
 
 #[link(name="sodium")]
 extern "C" {
     fn sodium_init() -> c_int;
 
-    fn sodium_malloc(len: size_t) -> *mut c_void;
+    fn sodium_allocarray(count: size_t, size: size_t) -> *mut c_void;
     fn sodium_free(ptr: *mut c_void);
 
     fn sodium_memzero(ptr: *mut c_void, len: size_t);
@@ -26,29 +27,27 @@ extern "C" {
     fn randombytes_buf(ptr: *mut c_void, len: size_t);
 }
 
-pub fn init() {
-    INIT.call_once(|| {
-        if unsafe { sodium_init() } < 0 {
-            panic!("sodium: couldn't initialize libsodium");
-        }
-    })
-}
-
-pub fn malloc<T>(count: usize) -> *mut T {
+pub fn init() -> bool {
     unsafe {
-        let len = size_of::<T>(count);
-        let ptr = sodium_malloc(len);
+        INIT.call_once(|| {
+            initialized = sodium_init() != -1;
+        });
 
-        if ptr.is_null() {
-            panic!("sodium: couldn't allocate memory")
-        }
-
-        ptr as *mut _
+        initialized
     }
 }
 
-pub fn free<T>(ptr: *mut T) {
-    unsafe { sodium_free(ptr as *mut _) }
+pub fn allocarray<T>(count: usize) -> *mut T {
+    unsafe {
+        sodium_allocarray(
+            count as size_t,
+            size_of::<T>(1),
+        ) as *mut _
+    }
+}
+
+pub unsafe fn free<T>(ptr: *mut T) {
+    sodium_free(ptr as *mut _)
 }
 
 pub unsafe fn memzero<T>(ptr: *mut T, count: usize) {

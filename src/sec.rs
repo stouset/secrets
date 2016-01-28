@@ -37,7 +37,7 @@ impl<T> Drop for Sec<T> {
             debug_assert_eq!(Prot::NoAccess, self.prot.get());
         }
 
-        sodium::free(self.ptr)
+        unsafe { sodium::free(self.ptr) }
     }
 }
 
@@ -138,14 +138,20 @@ impl<T: Zeroable> Sec<T> {
 
 impl<T> Sec<T> {
     pub unsafe fn uninitialized(len: usize) -> Self {
-        sodium::init();
+        if sodium::init() == false {
+            panic!("secrets: couldn't initialized libsodium");
+        }
 
         let sec = Sec {
-            ptr:  sodium::malloc(len),
+            ptr:  sodium::allocarray(len),
             len:  len,
             prot: Cell::new(Prot::ReadOnly),
             refs: Cell::new(1),
         };
+
+        if sec.ptr.is_null() {
+            panic!("secrets: couldn't allocate memory");
+        }
 
         sec.lock();
         sec
