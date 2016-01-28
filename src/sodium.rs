@@ -14,7 +14,7 @@ static mut initialized: bool = false;
 extern "C" {
     fn sodium_init() -> c_int;
 
-    fn sodium_malloc(len: size_t) -> *mut c_void;
+    fn sodium_allocarray(count: size_t, size: size_t) -> *mut c_void;
     fn sodium_free(ptr: *mut c_void);
 
     fn sodium_memzero(ptr: *mut c_void, len: size_t);
@@ -37,16 +37,12 @@ pub fn init() -> bool {
     }
 }
 
-pub fn malloc<T>(count: usize) -> *mut T {
+pub fn allocarray<T>(count: usize) -> *mut T {
     unsafe {
-        let len = size_of::<T>(count);
-        let ptr = sodium_malloc(len);
-
-        if ptr.is_null() {
-            panic!("sodium: couldn't allocate memory")
-        }
-
-        ptr as *mut _
+        sodium_allocarray(
+            count as size_t,
+            size_of::<T>(1),
+        ) as *mut _
     }
 }
 

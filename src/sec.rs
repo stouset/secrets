@@ -143,11 +143,15 @@ impl<T> Sec<T> {
         }
 
         let sec = Sec {
-            ptr:  sodium::malloc(len),
+            ptr:  sodium::allocarray(len),
             len:  len,
             prot: Cell::new(Prot::ReadOnly),
             refs: Cell::new(1),
         };
+
+        if sec.ptr.is_null() {
+            panic!("secrets: couldn't allocate memory");
+        }
 
         sec.lock();
         sec
