@@ -7,7 +7,8 @@ use std::sync::{Once, ONCE_INIT};
 
 use libc::{c_void, c_int, size_t};
 
-static INIT: Once = ONCE_INIT;
+static     INIT:        Once = ONCE_INIT;
+static mut initialized: bool = false;
 
 #[link(name="sodium")]
 extern "C" {
@@ -26,12 +27,14 @@ extern "C" {
     fn randombytes_buf(ptr: *mut c_void, len: size_t);
 }
 
-pub fn init() {
-    INIT.call_once(|| {
-        if unsafe { sodium_init() } < 0 {
-            panic!("sodium: couldn't initialize libsodium");
-        }
-    })
+pub fn init() -> bool {
+    unsafe {
+        INIT.call_once(|| {
+            initialized = sodium_init() != -1;
+        });
+
+        initialized
+    }
 }
 
 pub fn malloc<T>(count: usize) -> *mut T {
