@@ -30,6 +30,10 @@ extern "C" {
 pub fn init() -> bool {
     unsafe {
         INIT.call_once(|| {
+            // TODO: safely convert back and forth between libsodium
+            // sizes and Rust sizes
+            debug_assert_eq!(mem::size_of::<usize>(), mem::size_of::<size_t>());
+
             initialized = sodium_init() != -1;
         });
 
@@ -37,13 +41,11 @@ pub fn init() -> bool {
     }
 }
 
-pub fn allocarray<T>(count: usize) -> *mut T {
-    unsafe {
-        sodium_allocarray(
-            count as size_t,
-            size_of::<T>(1),
-        ) as *mut _
-    }
+pub unsafe fn allocarray<T>(count: usize) -> *mut T {
+    sodium_allocarray(
+        count               as size_t,
+        mem::size_of::<T>() as size_t,
+    ) as *mut _
 }
 
 pub unsafe fn free<T>(ptr: *mut T) {
