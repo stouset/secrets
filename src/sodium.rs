@@ -43,8 +43,8 @@ pub fn init() -> bool {
 
 pub unsafe fn allocarray<T>(count: usize) -> *mut T {
     sodium_allocarray(
-        count               as size_t,
-        mem::size_of::<T>() as size_t,
+        count,
+        mem::size_of::<T>(),
     ) as *mut _
 }
 
@@ -82,5 +82,5 @@ pub unsafe fn random<T>(ptr: *mut T, count: usize) {
 }
 
 fn size_of<T>(count: usize) -> size_t {
-    (mem::size_of::<T>() * count) as size_t
+    mem::size_of::<T>() * count
 }
