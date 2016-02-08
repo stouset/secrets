@@ -139,7 +139,7 @@ impl<T: Zeroable> Sec<T> {
 impl<T> Sec<T> {
     pub unsafe fn uninitialized(len: usize) -> Self {
         if sodium::init() == false {
-            panic!("secrets: couldn't initialized libsodium");
+            panic!("secrets: couldn't initialize libsodium");
         }
 
         let sec = Sec {
