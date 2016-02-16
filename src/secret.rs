@@ -1,4 +1,4 @@
-use marker::{BytewiseEq, Randomizable, Zeroable};
+use traits::{BytewiseEq, Randomizable, Zeroable};
 use sec::Sec;
 
 use std::borrow::{Borrow, BorrowMut};
@@ -66,7 +66,8 @@ use std::ops::{Deref, DerefMut};
 /// Wrapping custom struct types:
 ///
 /// ```
-/// use secrets::{Secret, Zeroable};
+/// use secrets::Secret;
+/// use secrets::traits::Zeroable;
 ///
 /// #[derive(Debug)]
 /// #[derive(PartialEq)]

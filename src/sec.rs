@@ -1,7 +1,7 @@
 // This comment prevents Emacs from thinking this file is executable
 #![allow(unsafe_code)]
 
-use marker::{BytewiseEq, Randomizable, Zeroable};
+use traits::{BytewiseEq, Randomizable, Zeroable};
 
 use sodium;
 

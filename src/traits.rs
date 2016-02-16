@@ -1,3 +1,5 @@
+//! A collection of traits useful for bytewise manipulation of data.
+
 /// Types able to be compared bytewise for equality.
 ///
 /// This probably ought to put a trait bound on Eq, as bytewise

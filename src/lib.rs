@@ -33,12 +33,12 @@
 
 extern crate libc;
 
-mod marker;
+pub mod traits;
+
 mod sec;
 mod secret;
 mod secret_vec;
 mod sodium;
 
-pub use marker::{Randomizable, Zeroable};
 pub use secret::{Secret, Ref, RefMut};
 pub use secret_vec::{SecretVec, RefVec, RefVecMut};
