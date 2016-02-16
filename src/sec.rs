@@ -48,21 +48,26 @@ impl<T> Debug for Sec<T> {
 }
 
 impl<T: BytewiseEq> PartialEq for Sec<T> {
-    fn eq(&self, s: &Self) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         let len = self.len;
         let ret;
 
-        if len != s.len {
+        if len != other.len {
             return false;
         }
 
-        self.read();
-        s   .read();
+        self .read();
+        other.read();
 
-        unsafe { ret = sodium::memcmp(s.ptr, self.ptr, len) };
+        {
+            let left  : &T = self .borrow();
+            let right : &T = other.borrow();
 
-        s   .lock();
-        self.lock();
+            ret = left.eq(right);
+        }
+
+        other.lock();
+        self .lock();
 
         ret
     }
