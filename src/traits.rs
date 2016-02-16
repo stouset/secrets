@@ -1,23 +1,54 @@
 //! A collection of traits useful for bytewise manipulation of data.
 
-/// Types able to be compared bytewise for equality.
-///
-/// This probably ought to put a trait bound on Eq, as bytewise
-/// equality is an even stronger requirement than being an equivalence
-/// relation. However, Rust doesn't impl Eq on arrays with more than
-/// 32 entries, and we implement traits on everything up to 64
-/// entries.
-pub trait BytewiseEq {}
+#![allow(unsafe_code)]
 
-/// Types able to be initialized with random data.
-pub trait Randomizable {}
+use sodium;
+use std::mem;
 
-/// Types able to be initialized with zeroed data.
-pub trait Zeroable {}
+/// Types that are considered equal if and only if their backing memory is equal.
+//
+// This should have a trait bound on Eq, as bytewise equality is an even stronger requirement than
+// being an equivalence relation, and we want to have this logic occur for the `==` operator.
+// However, Rust doesn't impl Eq on arrays with more than 32 entries, and we implement traits on
+// everything up to 64 entries.
+pub trait BytewiseEq : Sized {
+    /// Compares `self` and `other` for equality by comparing the contents of their memory
+    /// directly in constant time..
+    fn eq(&self, other: &Self) -> bool {
+        unsafe { sodium::memcmp(self, other, mem::size_of::<Self>()) }
+    }
+}
 
-impl<T: BytewiseEq> BytewiseEq for [T] {}
-impl<T: Randomizable> Randomizable for [T] {}
-impl<T: Zeroable> Zeroable for [T] {}
+/// Types that can be safely initialized by setting their memory to random values.
+pub trait Randomizable : Sized {
+    /// Returns a randomized instance of the type.
+    fn randomized() -> Self {
+        let mut v = unsafe { mem::uninitialized::<Self>() };
+        v.randomize();
+        v
+    }
+
+    /// Randomizes the contents of self.
+    fn randomize(&mut self) {
+        unsafe { sodium::random(self, mem::size_of::<Self>()) };
+    }
+}
+
+/// Types that can be safely initialized by setting their memory to all zeroes.
+pub trait Zeroable : Sized {
+    /// Returns a zeroed instance of the type.
+    fn zeroed() -> Self {
+        let mut v = unsafe { mem::uninitialized::<Self>() };
+        v.zero();
+        v
+    }
+
+    /// Ensures the contents of self are zeroed out. This is guaranteed not to be optimized away,
+    /// even if the object is never later used.
+    fn zero(&mut self) {
+        unsafe { sodium::memzero(self, mem::size_of::<Self>()) }
+    }
+}
 
 macro_rules! impls {
     (array $($tt:tt)*) => { impls!{ [] $(($tt))* } };
