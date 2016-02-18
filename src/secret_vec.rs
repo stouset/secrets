@@ -98,7 +98,7 @@ impl<T: BytewiseEq> PartialEq for SecretVec<T> {
 
 impl<T: BytewiseEq> Eq for SecretVec<T> {}
 
-impl<'a, T: Zeroable> From<&'a mut [T]> for SecretVec<T> {
+impl<'a, T: Zeroable + Copy> From<&'a mut [T]> for SecretVec<T> {
     /// Moves the contents of `data` into a `SecretVec` and zeroes out
     /// the contents of `data`.
     fn from(data: &mut [T]) -> Self {
