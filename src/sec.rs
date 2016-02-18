@@ -99,13 +99,13 @@ impl<T> BorrowMut<[T]> for Sec<T> {
     }
 }
 
-impl<'a, T: Zeroable> From<&'a mut T> for Sec<T> {
+impl<'a, T: Zeroable + Copy> From<&'a mut T> for Sec<T> {
     fn from(data: &mut T) -> Self {
         Self::from_raw_parts(data, 1)
     }
 }
 
-impl<'a, T: Zeroable> From<&'a mut [T]> for Sec<T> {
+impl<'a, T: Zeroable + Copy> From<&'a mut [T]> for Sec<T> {
     fn from(data: &mut [T]) -> Self {
         Self::from_raw_parts(data.as_mut_ptr(), data.len())
     }
@@ -135,7 +135,9 @@ impl<T: Zeroable> Sec<T> {
     pub fn zero(len: usize) -> Self {
         unsafe { Sec::new(len, |sec| sodium::memzero(sec.ptr, sec.len)) }
     }
+}
 
+impl<T: Zeroable + Copy> Sec<T> {
     fn from_raw_parts(ptr: *mut T, len: usize) -> Self {
         unsafe { Sec::new(len, |sec| sodium::memmove(ptr, sec.ptr, sec.len)) }
     }

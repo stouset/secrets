@@ -98,7 +98,7 @@ impl<T: BytewiseEq> PartialEq for Secret<T> {
 
 impl<T: BytewiseEq> Eq for Secret<T> {}
 
-impl<'a, T: Zeroable> From<&'a mut T> for Secret<T> {
+impl<'a, T: Zeroable + Copy> From<&'a mut T> for Secret<T> {
     /// Moves the contents of `data` into a `Secret` and zeroes out
     /// the contents of `data`.
     fn from(data: &mut T) -> Self {
