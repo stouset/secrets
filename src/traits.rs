@@ -5,6 +5,15 @@
 use sodium;
 use std::mem;
 
+/// Types that are fixed-size byte arrays.
+pub trait ByteArray {
+    /// Converts the array to an immutable slice of bytes.
+    fn as_slice(&self) -> &[u8];
+
+    /// Converts the array to a mutable slice of bytes.
+    fn as_mut_slice(&mut self) -> &mut [u8];
+}
+
 /// Types that are considered equal if and only if their backing memory is equal.
 //
 // This should have a trait bound on Eq, as bytewise equality is an even stronger requirement than
@@ -13,10 +22,18 @@ use std::mem;
 // everything up to 64 entries.
 pub trait BytewiseEq : Sized {
     /// Compares `self` and `other` for equality by comparing the contents of their memory
-    /// directly in constant time..
+    /// directly in constant time.
     fn eq(&self, other: &Self) -> bool {
         unsafe { sodium::memcmp(self, other, 1) }
     }
+}
+
+/// Types whose contents can be completely represented by and manipulated through an underlying
+/// mutable reference to another type `T`
+pub trait IsMutRef<T> {
+    /// Cheaply converts `self` to a mutable reference to `T`, through which the original object
+    /// can be safely mutated without loss of consistency.
+    fn as_mut_ref(&mut self) -> &mut T;
 }
 
 /// Types that can be safely initialized by setting their memory to random values.
@@ -50,6 +67,12 @@ pub trait Zeroable : Sized {
     }
 }
 
+impl<T> IsMutRef<T> for T {
+    fn as_mut_ref(&mut self) -> &mut T {
+        self
+    }
+}
+
 macro_rules! impls {
     (array $($tt:tt)*) => { impls!{ [] $(($tt))* } };
     (tuple $($tt:tt)*) => { impls!{ () void $($tt)* } };
@@ -63,6 +86,11 @@ macro_rules! impls {
         impl<T: BytewiseEq> BytewiseEq for [T; $n] {}
         impl<T: Randomizable> Randomizable for [T; $n] {}
         impl<T: Zeroable> Zeroable for [T; $n] {}
+
+        impl ByteArray for [u8; $n] {
+            fn as_slice(&self) -> &[u8] { self }
+            fn as_mut_slice(&mut self) -> &mut [u8] { self }
+        }
     )*};
 
     (()) => { };
