@@ -97,6 +97,7 @@ impl<T: ByteArray + BytewiseEq> PartialEq<Key<T>> for Key<T> {
     }
 }
 
+impl<T: ByteArray + BytewiseEq> Eq for Key<T> {}
 impl<T: ByteArray + BytewiseEq> BytewiseEq for Key<T> {}
 impl<T: ByteArray + Randomizable> Randomizable for Key<T> {}
 impl<T: ByteArray + Zeroable> Zeroable for Key<T> {}
