@@ -3,7 +3,6 @@
 #![allow(unsafe_code)]
 
 use sodium;
-use std::mem;
 
 /// Types that are fixed-size byte arrays.
 pub trait ByteArray {
@@ -38,13 +37,6 @@ pub trait IsMutRef<T> {
 
 /// Types that can be safely initialized by setting their memory to random values.
 pub trait Randomizable : Sized {
-    /// Returns a randomized instance of the type.
-    fn randomized() -> Self {
-        let mut v = unsafe { mem::uninitialized::<Self>() };
-        v.randomize();
-        v
-    }
-
     /// Randomizes the contents of self.
     fn randomize(&mut self) {
         unsafe { sodium::random(self, 1) };
@@ -53,13 +45,6 @@ pub trait Randomizable : Sized {
 
 /// Types that can be safely initialized by setting their memory to all zeroes.
 pub trait Zeroable : Sized {
-    /// Returns a zeroed instance of the type.
-    fn zeroed() -> Self {
-        let mut v = unsafe { mem::uninitialized::<Self>() };
-        v.zero();
-        v
-    }
-
     /// Ensures the contents of self are zeroed out. This is guaranteed not to be optimized away,
     /// even if the object is never later used.
     fn zero(&mut self) {

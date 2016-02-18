@@ -97,6 +97,7 @@ impl<T: ByteArray + BytewiseEq> PartialEq<Key<T>> for Key<T> {
     }
 }
 
+impl<T: ByteArray + BytewiseEq> Eq for Key<T> {}
 impl<T: ByteArray + BytewiseEq> BytewiseEq for Key<T> {}
 impl<T: ByteArray + Randomizable> Randomizable for Key<T> {}
 impl<T: ByteArray + Zeroable> Zeroable for Key<T> {}
@@ -121,37 +122,30 @@ mod tests {
     }
 
     #[test]
-    fn it_initializes_with_zeroes() {
-        let k = Key::<[u8; 4]>::zeroed();
+    fn it_zeroes() {
+        let mut k = Key::new(b"\x10\x20\x30\x44");
+        k.zero();
 
         assert_eq!(k.as_slice(), [0; 4]);
     }
 
+    #[allow(unsafe_code)]
     #[test]
-    fn it_zeroes() {
-        let mut k = Key::<[u8; 8]>::randomized();
-        k.zero();
+    fn it_randomizes() {
+        let mut k1 = unsafe { Key256::uninitialized() };
+        let mut k2 = unsafe { Key256::uninitialized() };
+        let mut k3 = unsafe { Key256::uninitialized() };
+        let zeroes = &[0; 32][..];
 
-        assert_eq!(k.as_slice(), [0; 8]);
-    }
-
-    #[test]
-    fn it_initializes_with_random() {
-        let k1 = Key256::randomized();
-        let k2 = Key256::randomized();
-        let k3 = Key256::zeroed();
+        k1.randomize();
+        k2.randomize();
+        k3.zero();
 
         assert!(k1 != k2);
         assert!(k1 != k3);
         assert!(k2 != k3);
-    }
 
-    #[test]
-    fn it_randomizes() {
-        let mut k1 = Key512::zeroed();
-        k1.randomize();
-
-        assert!(k1.as_slice() != &[0; 64][..]);
+        assert!(k1.as_slice() != zeroes);
     }
 
     #[test]
