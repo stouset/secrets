@@ -34,6 +34,7 @@
 extern crate libc;
 
 pub mod traits;
+pub mod key;
 
 mod sec;
 mod secret;
