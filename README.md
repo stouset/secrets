@@ -23,7 +23,7 @@ Examples
 
 Generating cryptographic keys:
 
-```
+```rust
 use secrets::Secret;
 
 let secret   = Secret::<[u8; 32]>::random();
@@ -34,7 +34,7 @@ println!("{:?}", secret_r);
 
 Instantiating a SecretVec from existing mutable data:
 
-```
+```rust
 use secrets::SecretVec;
 
 let mut bytes  = *b"\xfa\x12\x00\xd9";
