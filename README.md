@@ -73,6 +73,6 @@ conditions.
 [license]: https://github.com/stouset/secrets/blob/master/LICENSE
 [package]: https://crates.io/crates/secrets
 
-[badge-ci]:      https://img.shields.io/travis/stouset/secrets.svg
+[badge-ci]:      https://img.shields.io/travis/stouset/secrets/master.svg
 [badge-license]: https://img.shields.io/crates/l/secrets.svg
 [badge-package]: https://img.shields.io/crates/v/secrets.svg
