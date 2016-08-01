@@ -1,7 +1,7 @@
 [package]
 name    = "secrets"
 version = "0.11.1"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 authors     = ["Stephen Touset <stephen@touset.org>"]
 description = "Protected-access memory for cryptographic secrets"
