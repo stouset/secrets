@@ -57,19 +57,12 @@ mod ffi {
     pub(crate) mod sodium;
 }
 
+mod boxed;
 mod buf;
 mod secret;
-// pub mod secret_box;
+pub mod secret_box;
 
-pub mod traits {
-    mod bytes;
-    mod randomizable;
-    mod zeroable;
-
-    pub use bytes::Bytes;
-    pub use randomizable::Randomizable;
-    pub use zeroable::Zeroable;
-}
+pub mod traits;
 
 pub use buf::{Buf, BufMut};
 pub use secret::Secret;
