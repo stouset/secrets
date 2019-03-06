@@ -14,4 +14,4 @@ documentation = "https://stouset.github.io/secrets"
 readme        = "README.md"
 
 [dependencies]
-libc      = '0'
+libc = '0'

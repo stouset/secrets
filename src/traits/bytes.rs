@@ -1,24 +1,39 @@
-#![allow(unsafe_code)]
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 
-use super::*;
+use std::mem;
+use std::slice;
 
-/// Types whose semantics allow them to be treated as a bag of bytes that may
-/// safely take on any random value.
-///
-/// The trait is marked unsafe in order to restrict implementors to types that
-/// can safely have their underlying memory randomized.
+pub unsafe trait ByteValue : Sized + Copy {
+    fn as_u8_ptr(&self) -> *const u8;
+    fn as_mut_u8_ptr(&mut self) -> *mut u8;
 
-pub unsafe trait Bytes: Sized {}
+    fn size() -> usize {
+        mem::size_of::<Self>()
+    }
+}
 
-unsafe impl<T: Bytes> Randomizable for T {}
+pub unsafe trait AsContiguousBytes {
+    fn size(&self) -> usize;
+    fn as_u8_ptr(&self) -> *const u8;
+    fn as_mut_u8_ptr(&mut self) -> *mut u8;
 
-unsafe impl Bytes for u8 {}
-unsafe impl Bytes for u16 {}
-unsafe impl Bytes for u32 {}
-unsafe impl Bytes for u64 {}
-unsafe impl Bytes for u128 {}
-unsafe impl Bytes for i8 {}
-unsafe impl Bytes for i16 {}
-unsafe impl Bytes for i32 {}
-unsafe impl Bytes for i64 {}
-unsafe impl Bytes for i128 {}
+    fn as_bytes(&self) -> &[u8] {
+        unsafe { slice::from_raw_parts(self.as_u8_ptr(), self.size()) }
+    }
+
+    fn as_mut_bytes(&mut self) -> &mut [u8] {
+        unsafe { slice::from_raw_parts_mut(self.as_mut_u8_ptr(), self.size()) }
+    }
+}
+
+unsafe impl<T: ByteValue> AsContiguousBytes for T {
+    fn size(&self) -> usize { Self::size() }
+    fn as_u8_ptr(&self) -> *const u8 { self.as_u8_ptr() }
+    fn as_mut_u8_ptr(&mut self) -> *mut u8 { self.as_mut_u8_ptr() }
+}
+
+unsafe impl<T: ByteValue> AsContiguousBytes for [T] {
+    fn size(&self) -> usize { self.len() * T::size() }
+    fn as_u8_ptr(&self) -> *const u8 { self.as_ptr() as *const _ }
+    fn as_mut_u8_ptr(&mut self) -> *mut u8 { self.as_ptr() as *mut _ }
+}
