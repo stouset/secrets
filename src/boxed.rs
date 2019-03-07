@@ -398,6 +398,74 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+mod tests_sigsegv {
+    use super::*;
+    use std::process;
+
+    fn assert_sigsegv<F>(f: F) where F: FnOnce() {
+        unsafe {
+            let pid      : libc::pid_t = libc::fork();
+            let mut stat : libc::c_int = 0;
+
+            match pid {
+                -1 => assert!(false, "`fork(2)` failed"),
+                0  => { f(); process::exit(0) },
+                _  => {
+                    if libc::waitpid(pid, &mut stat, 0) == -1 {
+                        assert!(false, "`waitpid(2) failed");
+                    };
+
+                    // assert that the process terminated due to a signal
+                    assert!(libc::WIFSIGNALED(stat));
+
+                    // assert that we received a SIGBUS or SIGSEGV,
+                    // either of which can be sent by an attempt to
+                    // access protected memory regions
+                    assert!(
+                        libc::WTERMSIG(stat) == 10 ||
+                        libc::WTERMSIG(stat) == 11
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn it_kills_attempts_to_read_while_locked() {
+        assert_sigsegv(|| {
+            let boxed = Box::<u64>::zero(4);
+            let val : &[u64] = boxed.borrow();
+
+            println!("{:?}", val);
+        });
+    }
+
+    #[test]
+    fn it_kills_attempts_to_write_while_locked() {
+        assert_sigsegv(|| {
+            let mut boxed = Box::<u64>::zero(4);
+            let val : &mut [u64] = boxed.borrow_mut();
+
+            val[0] = 0;
+        });
+    }
+
+    #[test]
+    fn it_kills_attempts_to_read_after_explicitly_locked() {
+        assert_sigsegv(|| {
+            let boxed = Box::<u32>::random(4);
+            let val   = boxed.unlock_read();
+            let _     = boxed.unlock_read();
+
+            boxed.lock();
+            boxed.lock();
+
+            println!("{:?}", val);
+        })
+    }
+}
+
 #[cfg(all(test, debug_assertions))]
 mod tests_debug_assertions {
     use super::*;
