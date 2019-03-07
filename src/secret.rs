@@ -68,7 +68,19 @@ mod tests {
             let mut ptr: *const _ = std::mem::uninitialized();
 
             Secret::<u128>::new(|mut s| {
-                *s  = 0x0123_4567_89ab_cdef_fedc_ba98_7654_3210;
+                // Funnily enough, this test also fails (in release
+                // mode) if we set `s` to since the Rust compiler
+                // rightly determines that this entire block does
+                // nothing and can be optimized away.
+                //
+                // So we use `sodium::memrandom` which `rustc` doesn't
+                // get to perform analysis on to force the compiler to
+                // not optimize this whole thing away.
+                sodium::memrandom(s.as_mut_bytes());
+
+                // Assign to a pointer that outlives this, which is
+                // totally undefined behavior but there's no real other
+                // way to test that this works.
                 ptr = &*s;
             });
 
