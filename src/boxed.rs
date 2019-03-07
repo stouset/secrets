@@ -396,6 +396,11 @@ mod tests {
             boxed.lock()
         }
     }
+}
+
+#[cfg(all(test, debug_assertions))]
+mod tests_debug_assertions {
+    use super::*;
 
     #[test]
     #[should_panic(expected = "secrets: cannot borrow mutably more than once")]
