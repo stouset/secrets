@@ -368,15 +368,15 @@ mod tests {
     #[test]
     fn it_allows_arbitrary_readers() {
         let     boxed = Box::<u8>::zero(1);
-        let mut count = [0_u8];
+        let mut count = 0_u8;
 
-        sodium::memrandom(&mut count);
+        sodium::memrandom(count.as_mut_bytes());
 
-        for _ in 0..count[0] {
+        for _ in 0..count {
             let _ = boxed.unlock_read();
         }
 
-        for _ in 0..count[0] {
+        for _ in 0..count {
             boxed.lock()
         }
     }
