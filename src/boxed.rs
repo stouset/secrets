@@ -89,7 +89,8 @@ impl<T: ByteValue> Box<T> {
         if refs == 0 {
             // when retaining, we must retain to a protection level with
             // some access
-            debug_assert!(prot != Prot::NoAccess);
+            debug_assert!(prot != Prot::NoAccess,
+                "secrets: must retain readably or writably");
 
             // allow access to the pointer and record what level of
             // access is being permitted
@@ -109,8 +110,10 @@ impl<T: ByteValue> Box<T> {
             //   * our target protection level *must* be `ReadOnly`
             //     since otherwise would involve changing the protection
             //     level of a currently-borrowed resource
-            debug_assert_eq!(self.prot.get(), Prot::ReadOnly);
-            debug_assert_eq!(prot,            Prot::ReadOnly);
+            debug_assert_eq!(self.prot.get(), Prot::ReadOnly,
+                "secrets: cannot borrow mutably more than once");
+            debug_assert_eq!(prot,            Prot::ReadOnly,
+                "secrets: cannot borrow mutably while borrowed immutably");
         }
 
         // "255 retains ought to be enough for anybody"
@@ -122,15 +125,17 @@ impl<T: ByteValue> Box<T> {
         // have more than 255 outstanding borrows at one time.
         self.refs.set(
             refs.checked_add(1)
-                .expect("secrets: memory retained too many times")
+                .expect("secrets: retained too many times")
         );
     }
 
     fn release(&self) {
         // when releasing, we must have at least one retain and our
         // protection level must allow some kind of access
-        debug_assert!(self.refs.get() != 0);
-        debug_assert!(self.prot.get() != Prot::NoAccess);
+        debug_assert!(self.refs.get() != 0,
+            "secrets: releases exceeded retains");
+        debug_assert!(self.prot.get() != Prot::NoAccess,
+            "secrets: locked memory region released");
 
         // `checked_sub` isn't necessary here since users should be
         // statically ensuring that retains and releases are balanced
@@ -177,8 +182,10 @@ impl<T: ByteValue> Drop for Box<T> {
         if !thread::panicking() {
             // if this value is being dropped, we want to ensure that
             // every retain has been balanced with a release
-            debug_assert_eq!(0,              self.refs.get());
-            debug_assert_eq!(Prot::NoAccess, self.prot.get());
+            debug_assert_eq!(0,              self.refs.get(),
+                "secrets: retains exceeded releases");
+            debug_assert_eq!(Prot::NoAccess, self.prot.get(),
+                "secrets: dropped secret was still accessible");
         }
 
         unsafe { sodium::free(self.ptr.as_mut()) }
@@ -375,7 +382,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "secrets: retained too many times")]
     fn it_doesnt_allow_overflowing_readers() {
         let boxed = Box::<[u64; 8]>::zero(4);
 
@@ -391,7 +398,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "secrets: cannot borrow mutably more than once")]
     fn it_doesnt_allow_multiple_writers() {
         let mut boxed = Box::<u64>::zero(1);
 
@@ -400,13 +407,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "secrets: releases exceeded retains")]
     fn it_doesnt_allow_negative_users() {
         Box::<u64>::zero(10).lock();
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "secrets: releases exceeded retains")]
     fn it_doesnt_allow_unbalanced_locking() {
         let boxed = Box::<u64>::zero(4);
         let _     = boxed.unlock_read();
@@ -415,7 +422,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "secrets: cannot borrow mutably while borrowed immutably")]
     fn it_doesnt_allow_different_access_types() {
         let mut boxed = Box::<[u128; 128]>::zero(5);
 
@@ -424,13 +431,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "secrets: retains exceeded releases")]
     fn it_doesnt_allow_outstanding_readers() {
         let _ = Box::<u8>::zero(1).unlock_read();
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "secrets: retains exceeded releases")]
     fn it_doesnt_allow_outstanding_writers() {
         let _ = Box::<u8>::zero(1).unlock_write();
     }
