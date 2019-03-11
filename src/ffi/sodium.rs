@@ -3,7 +3,6 @@
 #![allow(unsafe_code)]
 
 use std::mem;
-use std::ptr;
 use std::sync::{Once, ONCE_INIT};
 
 use libc::{c_int, c_void, size_t};
@@ -93,7 +92,7 @@ pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
         (src.as_ptr() > dst.as_ptr())
     );
 
-    ptr::copy_nonoverlapping(src.as_ptr(), dst.as_mut_ptr(), src.len());
+    src.as_ptr().copy_to_nonoverlapping(dst.as_mut_ptr(), src.len());
     memzero(src);
 }
 
