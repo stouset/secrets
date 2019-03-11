@@ -10,8 +10,14 @@ use std::borrow::{Borrow, BorrowMut};
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
+#[derive(Eq)]
 pub struct Buf<'a, T: ConstantEq> {
     data: &'a T,
+}
+
+#[derive(Eq)]
+pub struct BufMut<'a, T: ConstantEq> {
+    data: &'a mut T,
 }
 
 impl<'a, T: ConstantEq> Buf<'a, T> {
@@ -46,7 +52,6 @@ impl<T: ConstantEq> PartialEq for Buf<'_, T> {
     }
 }
 
-impl<T: ConstantEq> Eq for Buf<'_, T> {}
 
 pub struct BufMut<'a, T: ConstantEq> {
     data: &'a mut T,
@@ -94,5 +99,3 @@ impl<T: ConstantEq> PartialEq for BufMut<'_, T> {
         self.data.constant_eq(rhs.data)
     }
 }
-
-impl<T: ConstantEq> Eq for BufMut<'_, T> {}

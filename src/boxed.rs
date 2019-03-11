@@ -31,6 +31,7 @@ enum Prot {
 ///
 /// TODO: document invariants
 ///
+#[derive(Eq)]
 pub(crate) struct Box<T: ByteValue> {
     ptr:  NonNull<T>,
     len:  usize,
@@ -238,8 +239,6 @@ impl<T: ByteValue + ConstantEq> PartialEq for Box<T> {
         ret
     }
 }
-
-impl<T: ByteValue + ConstantEq> Eq for Box<T> {}
 
 impl<T: ByteValue + Zeroable> From<&mut [T]> for Box<T> {
     fn from(data: &mut [T]) -> Self {
