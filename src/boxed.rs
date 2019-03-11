@@ -3,7 +3,6 @@
 use crate::ffi::sodium;
 use crate::traits::*;
 
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::Cell;
 use std::fmt::{self, Debug};
 use std::thread;
@@ -60,24 +59,32 @@ impl<T: ByteValue> Box<T> {
             refs: Cell::new(1),
         };
 
-        init(boxed.borrow_mut());
+        init(boxed.as_mut());
 
         boxed.lock();
         boxed
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.len
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.len == 0
     }
 
     pub(crate) fn size(&self) -> usize {
         self.len * T::size()
     }
 
-    pub(crate) fn unlock_read(&self) -> &[T] {
+    pub(crate) fn unlock(&self) -> &Self {
         self.retain(Prot::ReadOnly);
-        self.borrow()
+        self
     }
 
-    pub(crate) fn unlock_write(&mut self) -> &mut [T] {
+    pub(crate) fn unlock_mut(&mut self) -> &mut Self {
         self.retain(Prot::ReadWrite);
-        self.borrow_mut()
+        self
     }
 
     pub(crate) fn lock(&self) {
@@ -112,9 +119,9 @@ impl<T: ByteValue> Box<T> {
             //     since otherwise would involve changing the protection
             //     level of a currently-borrowed resource
             debug_assert_eq!(self.prot.get(), Prot::ReadOnly,
-                "secrets: cannot borrow mutably more than once");
+                "secrets: cannot unlock mutably more than once");
             debug_assert_eq!(prot,            Prot::ReadOnly,
-                "secrets: cannot borrow mutably while borrowed immutably");
+                "secrets: cannot unlock mutably while unlocked immutably");
         }
 
         // "255 retains ought to be enough for anybody"
@@ -123,7 +130,7 @@ impl<T: ByteValue> Box<T> {
         // counter. This is ensured even in production builds because
         // it's infeasible for consumers of this API to actually enforce
         // this. That said, it's unlikely that anyone would need to
-        // have more than 255 outstanding borrows at one time.
+        // have more than 255 outstanding retains at one time.
         self.refs.set(
             refs.checked_add(1)
                 .expect("secrets: retained too many times")
@@ -199,14 +206,14 @@ impl<T: ByteValue> Debug for Box<T> {
     }
 }
 
-impl<T: ByteValue> Borrow<[T]> for Box<T> {
-    fn borrow(&self) -> &[T] {
+impl<T: ByteValue> AsRef<[T]> for Box<T> {
+    fn as_ref(&self) -> &[T] {
         unsafe { slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
     }
 }
 
-impl<T: ByteValue> BorrowMut<[T]> for Box<T> {
-    fn borrow_mut(&mut self) -> &mut [T] {
+impl<T: ByteValue> AsMut<[T]> for Box<T> {
+    fn as_mut(&mut self) -> &mut [T] {
         unsafe { slice::from_raw_parts_mut(self.ptr.as_mut(), self.len) }
     }
 }
@@ -215,7 +222,7 @@ impl<T: ByteValue> Clone for Box<T> {
     fn clone(&self) -> Self {
         unsafe {
             Self::_new(self.len, |s| {
-                s.copy_from_slice(self.unlock_read());
+                s.copy_from_slice(self.unlock().as_ref());
                 self.lock();
             }
         }
@@ -228,8 +235,8 @@ impl<T: ByteValue + ConstantEq> PartialEq for Box<T> {
             return false;
         }
 
-        let lhs = self.unlock_read();
-        let rhs = other.unlock_read();
+        let lhs = self.unlock().as_ref();
+        let rhs = other.unlock().as_ref();
 
         let ret = lhs.constant_eq(rhs);
 
@@ -267,7 +274,7 @@ mod tests {
             secret.clone_from_slice(b"\x04");
         });
 
-        assert_eq!(boxed.unlock_read(), b"\x04", );
+        assert_eq!(boxed.unlock().as_ref(), b"\x04", );
         boxed.lock();
     }
 
@@ -275,7 +282,7 @@ mod tests {
     fn it_initializes_with_garbage() {
         let boxed = Box::<u8>::uninitialized(4);
 
-        assert_eq!(boxed.unlock_read(), b"\xdb\xdb\xdb\xdb");
+        assert_eq!(boxed.unlock().as_ref(), b"\xdb\xdb\xdb\xdb");
         boxed.lock();
     }
 
@@ -283,7 +290,7 @@ mod tests {
     fn it_initializes_with_zero() {
         let boxed = Box::<u32>::zero(4);
 
-        assert_eq!(boxed.unlock_read(), [0, 0, 0, 0]);
+        assert_eq!(boxed.unlock().as_ref(), [0, 0, 0, 0]);
         boxed.lock();
     }
 
@@ -292,8 +299,8 @@ mod tests {
         let mut value = [4_u64];
         let     boxed = Box::from(&mut value[..]);
 
-        assert_eq!(value,               [0]);
-        assert_eq!(boxed.unlock_read(), [4]);
+        assert_eq!(value,                   [0]);
+        assert_eq!(boxed.unlock().as_ref(), [4]);
 
         boxed.lock();
     }
@@ -336,15 +343,15 @@ mod tests {
     fn it_tracks_ref_counts_accurately() {
         let mut boxed = Box::<u8>::random(10);
 
-        let _ = boxed.unlock_read();
-        let _ = boxed.unlock_read();
-        let _ = boxed.unlock_read();
+        let _ = boxed.unlock();
+        let _ = boxed.unlock();
+        let _ = boxed.unlock();
         assert_eq!(3, boxed.refs.get());
 
         boxed.lock(); boxed.lock(); boxed.lock();
         assert_eq!(0, boxed.refs.get());
 
-        let _ = boxed.unlock_write();
+        let _ = boxed.unlock_mut();
         assert_eq!(1, boxed.refs.get());
 
         boxed.lock();
@@ -356,7 +363,7 @@ mod tests {
         let boxed = Box::<u64>::zero(4);
 
         for _ in 0..u8::max_value() {
-            let _ = boxed.unlock_read();
+            let _ = boxed.unlock();
         }
 
         for _ in 0..u8::max_value() {
@@ -372,7 +379,7 @@ mod tests {
         sodium::memrandom(count.as_mut_bytes());
 
         for _ in 0..count {
-            let _ = boxed.unlock_read();
+            let _ = boxed.unlock();
         }
 
         for _ in 0..count {
@@ -386,7 +393,7 @@ mod tests {
         let boxed = Box::<[u64; 8]>::zero(4);
 
         for _ in 0..=u8::max_value() {
-            let _ = boxed.unlock_read();
+            let _ = boxed.unlock();
         }
 
         // this ensures that we *don't* inadvertently panic if we
@@ -434,9 +441,12 @@ mod tests_sigsegv {
     fn it_kills_attempts_to_read_while_locked() {
         assert_sigsegv(|| {
             let boxed = Box::<u64>::zero(4);
-            let val : &[u64] = boxed.borrow();
+            let val : &[u64] = boxed.as_ref();
 
-            println!("{:?}", val);
+            let _ = sodium::memcmp(
+                val.as_bytes(),
+                val.as_bytes()
+            );
         });
     }
 
@@ -444,9 +454,9 @@ mod tests_sigsegv {
     fn it_kills_attempts_to_write_while_locked() {
         assert_sigsegv(|| {
             let mut boxed = Box::<u64>::zero(4);
-            let val : &mut [u64] = boxed.borrow_mut();
+            let val : &mut [u64] = boxed.as_mut();
 
-            val[0] = 0;
+            val.swap(0, 1);
         });
     }
 
@@ -454,13 +464,16 @@ mod tests_sigsegv {
     fn it_kills_attempts_to_read_after_explicitly_locked() {
         assert_sigsegv(|| {
             let boxed = Box::<u32>::random(4);
-            let val   = boxed.unlock_read();
-            let _     = boxed.unlock_read();
+            let val   = boxed.unlock().as_ref();
+            let _     = boxed.unlock();
 
             boxed.lock();
             boxed.lock();
 
-            println!("{:?}", val);
+            let _ = sodium::memcmp(
+                val.as_bytes(),
+                val.as_bytes()
+            );
         })
     }
 }
@@ -470,12 +483,12 @@ mod tests_debug_assertions {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "secrets: cannot borrow mutably more than once")]
+    #[should_panic(expected = "secrets: cannot unlock mutably more than once")]
     fn it_doesnt_allow_multiple_writers() {
         let mut boxed = Box::<u64>::zero(1);
 
-        let _ = boxed.unlock_write();
-        let _ = boxed.unlock_write();
+        let _ = boxed.unlock_mut();
+        let _ = boxed.unlock_mut();
     }
 
     #[test]
@@ -488,29 +501,29 @@ mod tests_debug_assertions {
     #[should_panic(expected = "secrets: releases exceeded retains")]
     fn it_doesnt_allow_unbalanced_locking() {
         let boxed = Box::<u64>::zero(4);
-        let _     = boxed.unlock_read();
+        let _     = boxed.unlock();
         boxed.lock();
         boxed.lock();
     }
 
     #[test]
-    #[should_panic(expected = "secrets: cannot borrow mutably while borrowed immutably")]
+    #[should_panic(expected = "secrets: cannot unlock mutably while unlocked immutably")]
     fn it_doesnt_allow_different_access_types() {
         let mut boxed = Box::<[u128; 128]>::zero(5);
 
-        let _ = boxed.unlock_read();
-        let _ = boxed.unlock_write();
+        let _ = boxed.unlock();
+        let _ = boxed.unlock_mut();
     }
 
     #[test]
     #[should_panic(expected = "secrets: retains exceeded releases")]
     fn it_doesnt_allow_outstanding_readers() {
-        let _ = Box::<u8>::zero(1).unlock_read();
+        let _ = Box::<u8>::zero(1).unlock();
     }
 
     #[test]
     #[should_panic(expected = "secrets: retains exceeded releases")]
     fn it_doesnt_allow_outstanding_writers() {
-        let _ = Box::<u8>::zero(1).unlock_write();
+        let _ = Box::<u8>::zero(1).unlock_mut();
     }
 }
