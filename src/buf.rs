@@ -6,7 +6,6 @@
 
 use crate::traits::*;
 
-use std::borrow::{Borrow, BorrowMut};
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
@@ -32,12 +31,6 @@ impl<T: ConstantEq> Debug for Buf<'_, T> {
     }
 }
 
-impl<T: ConstantEq> Borrow<T> for Buf<'_, T> {
-    fn borrow(&self) -> &T {
-        self.data
-    }
-}
-
 impl<T: ConstantEq> Deref for Buf<'_, T> {
     type Target = T;
 
@@ -52,11 +45,6 @@ impl<T: ConstantEq> PartialEq for Buf<'_, T> {
     }
 }
 
-
-pub struct BufMut<'a, T: ConstantEq> {
-    data: &'a mut T,
-}
-
 impl<'a, T: ConstantEq> BufMut<'a, T> {
     pub(crate) fn new(data: &'a mut T) -> Self {
         Self { data }
@@ -66,18 +54,6 @@ impl<'a, T: ConstantEq> BufMut<'a, T> {
 impl<T: ConstantEq> Debug for BufMut<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{{ {} bytes redacted }}", self.data.size())
-    }
-}
-
-impl<T: ConstantEq> Borrow<T> for BufMut<'_, T> {
-    fn borrow(&self) -> &T {
-        self.data
-    }
-}
-
-impl<T: ConstantEq> BorrowMut<T> for BufMut<'_, T> {
-    fn borrow_mut(&mut self) -> &mut T {
-        self.data
     }
 }
 
