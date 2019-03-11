@@ -415,11 +415,11 @@ mod tests_sigsegv {
             let mut stat : libc::c_int = 0;
 
             match pid {
-                -1 => assert!(false, "`fork(2)` failed"),
+                -1 => panic!("`fork(2)` failed"),
                 0  => { f(); process::exit(0) },
                 _  => {
                     if libc::waitpid(pid, &mut stat, 0) == -1 {
-                        assert!(false, "`waitpid(2) failed");
+                        panic!("`waitpid(2) failed");
                     };
 
                     // assert that the process terminated due to a signal
