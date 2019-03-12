@@ -9,9 +9,6 @@ use std::thread;
 use std::ptr::NonNull;
 use std::slice;
 
-// TODO: delete this when clippy fixes the bug warning on derived
-// implementations of `Clone` and `Eq`
-#[cfg_attr(feature = "cargo-clippy", allow(clippy::missing_const_for_fn))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Prot {
     NoAccess,
@@ -55,6 +52,10 @@ impl<T: ByteValue> Box<T> {
 
             // `sodium::allocarray` allocates memory read/write, so we'll
             // need to manually lock it after initialization
+            //
+            // TODO: setting these back is extra work, we could just
+            // call `mprotect` directly instead of running through the
+            // code paths that change these variables
             prot: Cell::new(Prot::ReadWrite),
             refs: Cell::new(1),
         };
@@ -224,7 +225,7 @@ impl<T: ByteValue> Clone for Box<T> {
             Self::_new(self.len, |s| {
                 s.copy_from_slice(self.unlock().as_ref());
                 self.lock();
-            }
+            })
         }
     }
 }

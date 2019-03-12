@@ -206,4 +206,12 @@ mod test {
 
         assert_eq!(*secret.borrow(), [[1, 2], [3, 4]]);
     }
+
+    #[test]
+    fn it_moves_safely() {
+        let secret_1 = SecretVec::<u8>::zero(1);
+        let secret_2 = secret_1;
+
+        assert_eq!(*secret_2.borrow(), [0]);
+    }
 }
