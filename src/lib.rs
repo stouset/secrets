@@ -58,14 +58,12 @@ mod ffi {
 }
 
 mod boxed;
-mod buf;
 
 pub mod secret;
 // pub mod secret_box;
 pub mod secret_vec;
 pub mod traits;
 
-pub use buf::{Buf, BufMut};
 pub use secret::Secret;
 // pub use secret_box::SecretBox;
 pub use secret_vec::SecretVec;

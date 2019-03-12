@@ -1,11 +1,12 @@
 #![allow(missing_debug_implementations)]
 #![allow(unsafe_code)]
 
-use crate::BufMut;
 use crate::ffi::sodium;
 use crate::traits::*;
 
 use std::borrow::BorrowMut;
+use std::fmt::{Debug, Formatter, Result};
+use std::ops::{Deref, DerefMut};
 use std::mem;
 
 ///
@@ -16,33 +17,38 @@ pub struct Secret<T: ByteValue> {
     data: T,
 }
 
+#[derive(Eq)]
+pub struct Buf<'a, T: ConstantEq> {
+    data: &'a mut T,
+}
+
 impl<T: ByteValue> Secret<T> {
-    unsafe fn _new<F>(f: F) where F: FnOnce(BufMut<'_, T>) {
+    unsafe fn _new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         let mut secret = Self { data: mem::uninitialized() };
 
-        f(BufMut::new(&mut secret.data));
+        f(Buf::new(&mut secret.data));
     }
 }
 
 impl<T: ByteValue + Uninitializable> Secret<T> {
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
-    pub fn new<F>(f: F) where F: FnOnce(BufMut<'_, T>) {
+    pub fn new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         unsafe { Self::_new(|mut s| { s.garbage(); f(s) }) }
     }
 }
 
 impl<T: ByteValue + Zeroable> Secret<T> {
-    pub fn zero<F>(f: F) where F: FnOnce(BufMut<'_, T>) {
+    pub fn zero<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         unsafe { Self::_new(|mut s| { s.zero(); f(s) }) }
     }
 
-    pub fn from<F>(v: &mut T, f: F) where F: FnOnce(BufMut<'_, T>) {
+    pub fn from<F>(v: &mut T, f: F) where F: FnOnce(Buf<'_, T>) {
         unsafe { Self::_new(|mut s| { v.transfer(s.borrow_mut()); f(s) }) }
     }
 }
 
 impl<T: ByteValue + Randomizable> Secret<T> {
-    pub fn random<F>(f: F) where F: FnOnce(BufMut<'_, T>) {
+    pub fn random<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         unsafe { Self::_new(|mut s| { s.randomize(); f(s) })}
     }
 }
@@ -50,6 +56,37 @@ impl<T: ByteValue + Randomizable> Secret<T> {
 impl<T: ByteValue> Drop for Secret<T> {
     fn drop(&mut self) {
         sodium::memzero(self.data.as_mut_bytes())
+    }
+}
+
+impl<'a, T: ConstantEq> Buf<'a, T> {
+    pub(crate) fn new(data: &'a mut T) -> Self {
+        Self { data }
+    }
+}
+
+impl<T: ConstantEq> Debug for Buf<'_, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{{ {} bytes redacted }}", self.data.size())
+    }
+}
+
+impl<T: ConstantEq> Deref for Buf<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.data
+    }
+}
+impl<T: ConstantEq> DerefMut for Buf<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.data
+    }
+}
+
+impl<T: ConstantEq> PartialEq for Buf<'_, T> {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.data.constant_eq(rhs.data)
     }
 }
 
