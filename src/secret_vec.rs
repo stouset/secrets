@@ -4,7 +4,7 @@ use crate::traits::*;
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
-#[derive(Eq)]
+#[derive(Clone, Eq)]
 pub struct SecretVec<T: ByteValue> {
     boxed: Box<T>,
 }
@@ -89,6 +89,12 @@ impl<T: ByteValue> Deref for Ref<'_, T> {
 
 impl<T: ByteValue> Debug for Ref<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
+}
+
+impl<T: ByteValue + Zeroable> From<&mut [T]> for SecretVec<T> {
+    fn from(data: &mut [T]) -> Self {
+        Self { boxed: data.into() }
+    }
 }
 
 impl<T: ByteValue> PartialEq for Ref<'_, T> {
@@ -207,5 +213,21 @@ mod test {
         let secret_2 = secret_1;
 
         assert_eq!(*secret_2.borrow(), [0]);
+    }
+
+    #[test]
+    fn it_compares_equality() {
+        let secret_1 = SecretVec::<u8>::from(&mut [1, 2, 3][..]);
+        let secret_2 = secret_1.clone();
+
+        assert_eq!(secret_1, secret_2);
+    }
+
+    #[test]
+    fn it_compares_inequality() {
+        let secret_1 = SecretVec::<[u64; 8]>::random(32);
+        let secret_2 = SecretVec::<[u64; 8]>::random(32);
+
+        assert_ne!(secret_1, secret_2);
     }
 }
