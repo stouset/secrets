@@ -20,6 +20,10 @@ pub struct RefMut<'a, T: ByteValue> {
 }
 
 impl<T: ByteValue> SecretVec<T> {
+    pub fn new<F>(len: usize, f: F) -> Self where F: FnOnce(&mut [T]) {
+        Self { boxed: Box::new(len, f) }
+    }
+
     pub fn len(&self) -> usize {
         self.boxed.len()
     }
@@ -38,16 +42,6 @@ impl<T: ByteValue> SecretVec<T> {
 
     pub fn borrow_mut(&mut self) -> RefMut<'_, T> {
         RefMut::new(&mut self.boxed)
-    }
-}
-
-impl<T: ByteValue + Uninitializable> SecretVec<T> {
-    pub fn new<F>(len: usize, f: F) -> Self where F: FnOnce(&mut [T]) {
-        Self { boxed: Box::new(len, f) }
-    }
-
-    pub fn uninitialized(len: usize) -> Self {
-        Self { boxed: Box::uninitialized(len) }
     }
 }
 
