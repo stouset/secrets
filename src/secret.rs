@@ -7,7 +7,6 @@ use crate::traits::*;
 use std::borrow::BorrowMut;
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
-use std::mem;
 
 ///
 /// A buffer to arbitrary data which will be zeroed in-place automatically when
@@ -23,33 +22,27 @@ pub struct Buf<'a, T: ConstantEq> {
 }
 
 impl<T: ByteValue> Secret<T> {
-    unsafe fn _new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
-        let mut secret = Self { data: mem::uninitialized() };
+    #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
+    pub fn new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
+        let mut secret = Self { data: T::uninitialized() };
 
         f(Buf::new(&mut secret.data));
     }
 }
 
-impl<T: ByteValue + Uninitializable> Secret<T> {
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
-    pub fn new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
-        unsafe { Self::_new(|mut s| { s.garbage(); f(s) }) }
-    }
-}
-
 impl<T: ByteValue + Zeroable> Secret<T> {
     pub fn zero<F>(f: F) where F: FnOnce(Buf<'_, T>) {
-        unsafe { Self::_new(|mut s| { s.zero(); f(s) }) }
+        Self::new(|mut s| { s.zero(); f(s) })
     }
 
     pub fn from<F>(v: &mut T, f: F) where F: FnOnce(Buf<'_, T>) {
-        unsafe { Self::_new(|mut s| { v.transfer(s.borrow_mut()); f(s) }) }
+        Self::new(|mut s| { unsafe { v.transfer(s.borrow_mut()) }; f(s) })
     }
 }
 
 impl<T: ByteValue + Randomizable> Secret<T> {
     pub fn random<F>(f: F) where F: FnOnce(Buf<'_, T>) {
-        unsafe { Self::_new(|mut s| { s.randomize(); f(s) })}
+        Self::new(|mut s| { s.randomize(); f(s) })
     }
 }
 
@@ -93,6 +86,7 @@ impl<T: ConstantEq> PartialEq for Buf<'_, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ptr;
 
     #[test]
     fn it_defaults_to_garbage_data() {
@@ -102,7 +96,7 @@ mod tests {
     #[test]
     fn it_zeroes_when_leaving_scope() {
         unsafe {
-            let mut ptr: *const _ = std::mem::uninitialized();
+            let mut ptr: *const _ = ptr::null();
 
             Secret::<u128>::new(|mut s| {
                 // Funnily enough, this test also fails (in release

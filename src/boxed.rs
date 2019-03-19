@@ -36,14 +36,14 @@ pub(crate) struct Box<T: ByteValue> {
 }
 
 impl<T: ByteValue> Box<T> {
-    unsafe fn _new<F>(len: usize, init: F) -> Self
+    pub(crate) fn new<F>(len: usize, init: F) -> Self
         where F: FnOnce(&mut [T])
     {
         if !sodium::init() {
             panic!("secrets: failed to initialize libsodium");
         }
 
-        let ptr = NonNull::new(sodium::allocarray::<T>(len))
+        let ptr = NonNull::new(unsafe { sodium::allocarray::<T>(len) })
             .expect("secrets: failed to allocate memory");
 
         let mut boxed = Self {
@@ -159,27 +159,15 @@ impl<T: ByteValue> Box<T> {
     }
 }
 
-impl<T: ByteValue + Uninitializable> Box<T> {
-    pub(crate) fn new<F>(len: usize, init: F) -> Self
-        where F: FnOnce(&mut [T])
-    {
-        unsafe { Self::_new(len, init) }
-    }
-
-    pub(crate) fn uninitialized(len: usize) -> Self {
-        unsafe { Self::_new(len, |_| {}) }
-    }
-}
-
 impl<T: ByteValue + Randomizable> Box<T> {
     pub(crate) fn random(len: usize) -> Self {
-        unsafe { Self::_new(len, Randomizable::randomize) }
+        Self::new(len, Randomizable::randomize)
     }
 }
 
 impl<T: ByteValue + Zeroable> Box<T> {
      pub(crate) fn zero(len: usize) -> Self {
-         unsafe { Self::_new(len, Zeroable::zero) }
+         Self::new(len, Zeroable::zero)
      }
 }
 
@@ -221,12 +209,10 @@ impl<T: ByteValue> AsMut<[T]> for Box<T> {
 
 impl<T: ByteValue> Clone for Box<T> {
     fn clone(&self) -> Self {
-        unsafe {
-            Self::_new(self.len, |s| {
-                s.copy_from_slice(self.unlock().as_ref());
-                self.lock();
-            })
-        }
+        Self::new(self.len, |s| {
+            s.copy_from_slice(self.unlock().as_ref());
+            self.lock();
+        })
     }
 }
 
@@ -251,7 +237,7 @@ impl<T: ByteValue + ConstantEq> PartialEq for Box<T> {
 impl<T: ByteValue + Zeroable> From<&mut [T]> for Box<T> {
     fn from(data: &mut [T]) -> Self {
         // this is safe since the secret and data will never overlap
-        unsafe { Self::_new(data.len(), |s| data.transfer(s)) }
+        Self::new(data.len(), |s| unsafe { data.transfer(s) })
     }
 }
 
@@ -281,7 +267,7 @@ mod tests {
 
     #[test]
     fn it_initializes_with_garbage() {
-        let boxed = Box::<u8>::uninitialized(4);
+        let boxed = Box::<u8>::new(4, |_| {});
 
         assert_eq!(boxed.unlock().as_ref(), b"\xdb\xdb\xdb\xdb");
         boxed.lock();

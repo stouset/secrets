@@ -7,13 +7,11 @@
 mod bytes;
 mod constant_eq;
 mod randomizable;
-mod uninitializable;
 mod zeroable;
 
 pub use bytes::{ByteValue, AsContiguousBytes};
 pub use constant_eq::ConstantEq;
 pub use randomizable::Randomizable;
-pub use uninitializable::Uninitializable;
 pub use zeroable::Zeroable;
 
 macro_rules! impls {

@@ -3,9 +3,26 @@
 use std::mem;
 use std::slice;
 
+/// Marker value for uninitialized data. This value is reused from
+/// `src/libsodium/sodium/utils.c` in libsodium. The lowest byte was chosen so
+/// that, if accidentally used as the LSB of a pointer, it would be unaligned
+/// and thus more likely to trigger noticeable bugs.
+const GARBAGE_VALUE: u8 = 0xdb;
+
 pub unsafe trait ByteValue : Sized + Copy {
     fn as_u8_ptr(&self) -> *const u8;
     fn as_mut_u8_ptr(&mut self) -> *mut u8;
+
+    // TODO: when MaybeUninit is stable, rework this to return
+    // actually-uninitialized data, and have callers either write zeroes
+    // or garbage or real data into it as necessary
+    fn uninitialized() -> Self {
+        unsafe {
+            let mut val : Self = mem::uninitialized();
+            val.as_mut_u8_ptr().write_bytes(GARBAGE_VALUE, val.size());
+            val
+        }
+    }
 
     fn size() -> usize {
         mem::size_of::<Self>()
