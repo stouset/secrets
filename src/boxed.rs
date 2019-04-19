@@ -28,14 +28,14 @@ enum Prot {
 /// TODO: document invariants
 ///
 #[derive(Eq)]
-pub(crate) struct Box<T: ByteValue> {
+pub(crate) struct Box<T: Bytes> {
     ptr:  NonNull<T>,
     len:  usize,
     prot: Cell<Prot>,
     refs: Cell<u8>,
 }
 
-impl<T: ByteValue> Box<T> {
+impl<T: Bytes> Box<T> {
     pub(crate) fn new<F>(len: usize, init: F) -> Self
         where F: FnOnce(&mut [T])
     {
@@ -159,19 +159,19 @@ impl<T: ByteValue> Box<T> {
     }
 }
 
-impl<T: ByteValue + Randomizable> Box<T> {
+impl<T: Bytes + Randomizable> Box<T> {
     pub(crate) fn random(len: usize) -> Self {
         Self::new(len, Randomizable::randomize)
     }
 }
 
-impl<T: ByteValue + Zeroable> Box<T> {
+impl<T: Bytes + Zeroable> Box<T> {
      pub(crate) fn zero(len: usize) -> Self {
          Self::new(len, Zeroable::zero)
      }
 }
 
-impl<T: ByteValue> Drop for Box<T> {
+impl<T: Bytes> Drop for Box<T> {
     fn drop(&mut self) {
         // if we're panicking and the stack is unwinding, we can't be
         // certain that the objects holding a reference to us have been
@@ -189,25 +189,25 @@ impl<T: ByteValue> Drop for Box<T> {
     }
 }
 
-impl<T: ByteValue> Debug for Box<T> {
+impl<T: Bytes> Debug for Box<T> {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(fmt, "{{ {} bytes redacted }}", self.size())
     }
 }
 
-impl<T: ByteValue> AsRef<[T]> for Box<T> {
+impl<T: Bytes> AsRef<[T]> for Box<T> {
     fn as_ref(&self) -> &[T] {
         unsafe { slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
     }
 }
 
-impl<T: ByteValue> AsMut<[T]> for Box<T> {
+impl<T: Bytes> AsMut<[T]> for Box<T> {
     fn as_mut(&mut self) -> &mut [T] {
         unsafe { slice::from_raw_parts_mut(self.ptr.as_mut(), self.len) }
     }
 }
 
-impl<T: ByteValue> Clone for Box<T> {
+impl<T: Bytes> Clone for Box<T> {
     fn clone(&self) -> Self {
         Self::new(self.len, |s| {
             s.copy_from_slice(self.unlock().as_ref());
@@ -216,7 +216,7 @@ impl<T: ByteValue> Clone for Box<T> {
     }
 }
 
-impl<T: ByteValue + ConstantEq> PartialEq for Box<T> {
+impl<T: Bytes + ConstantEq> PartialEq for Box<T> {
     fn eq(&self, other: &Self) -> bool {
         if self.len != other.len {
             return false;
@@ -234,7 +234,7 @@ impl<T: ByteValue + ConstantEq> PartialEq for Box<T> {
     }
 }
 
-impl<T: ByteValue + Zeroable> From<&mut [T]> for Box<T> {
+impl<T: Bytes + Zeroable> From<&mut [T]> for Box<T> {
     fn from(data: &mut [T]) -> Self {
         // this is safe since the secret and data will never overlap
         Self::new(data.len(), |s| unsafe { data.transfer(s) })

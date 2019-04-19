@@ -9,7 +9,7 @@ use std::slice;
 /// and thus more likely to trigger noticeable bugs.
 const GARBAGE_VALUE: u8 = 0xdb;
 
-pub unsafe trait ByteValue : Sized + Copy {
+pub unsafe trait Bytes : Sized + Copy {
     fn as_u8_ptr(&self) -> *const u8;
     fn as_mut_u8_ptr(&mut self) -> *mut u8;
 
@@ -43,13 +43,13 @@ pub unsafe trait AsContiguousBytes {
     }
 }
 
-unsafe impl<T: ByteValue> AsContiguousBytes for T {
+unsafe impl<T: Bytes> AsContiguousBytes for T {
     fn size(&self) -> usize { Self::size() }
     fn as_u8_ptr(&self) -> *const u8 { self.as_u8_ptr() }
     fn as_mut_u8_ptr(&mut self) -> *mut u8 { self.as_mut_u8_ptr() }
 }
 
-unsafe impl<T: ByteValue> AsContiguousBytes for [T] {
+unsafe impl<T: Bytes> AsContiguousBytes for [T] {
     fn size(&self) -> usize { self.len() * T::size() }
     fn as_u8_ptr(&self) -> *const u8 { self.as_ptr() as *const _ }
     fn as_mut_u8_ptr(&mut self) -> *mut u8 { self.as_ptr() as *mut _ }

@@ -5,21 +5,21 @@ use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Eq)]
-pub struct SecretVec<T: ByteValue> {
+pub struct SecretVec<T: Bytes> {
     boxed: Box<T>,
 }
 
 #[derive(Eq)]
-pub struct Ref<'a, T: ByteValue> {
+pub struct Ref<'a, T: Bytes> {
     boxed: &'a Box<T>,
 }
 
 #[derive(Eq)]
-pub struct RefMut<'a, T: ByteValue> {
+pub struct RefMut<'a, T: Bytes> {
     boxed: &'a mut Box<T>,
 }
 
-impl<T: ByteValue> SecretVec<T> {
+impl<T: Bytes> SecretVec<T> {
     pub fn new<F>(len: usize, f: F) -> Self where F: FnOnce(&mut [T]) {
         Self { boxed: Box::new(len, f) }
     }
@@ -45,41 +45,41 @@ impl<T: ByteValue> SecretVec<T> {
     }
 }
 
-impl<T: ByteValue + Randomizable> SecretVec<T> {
+impl<T: Bytes + Randomizable> SecretVec<T> {
     pub fn random(len: usize) -> Self {
         Self { boxed: Box::random(len) }
     }
 }
 
-impl<T: ByteValue + Zeroable> SecretVec<T> {
+impl<T: Bytes + Zeroable> SecretVec<T> {
     pub fn zero(len: usize) -> Self {
         Self { boxed: Box::zero(len) }
     }
 }
 
-impl<T: ByteValue> Debug for SecretVec<T> {
+impl<T: Bytes> Debug for SecretVec<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
 }
 
-impl<T: ByteValue + ConstantEq> PartialEq for SecretVec<T> {
+impl<T: Bytes + ConstantEq> PartialEq for SecretVec<T> {
     fn eq(&self, rhs: &Self) -> bool {
         self.boxed.eq(&rhs.boxed)
     }
 }
 
-impl<'a, T: ByteValue> Ref<'a, T> {
+impl<'a, T: Bytes> Ref<'a, T> {
     fn new(boxed: &'a Box<T>) -> Self {
         Self { boxed: boxed.unlock() }
     }
 }
 
-impl<T: ByteValue> Drop for Ref<'_, T> {
+impl<T: Bytes> Drop for Ref<'_, T> {
     fn drop(&mut self) {
         self.boxed.lock();
     }
 }
 
-impl<T: ByteValue> Deref for Ref<'_, T> {
+impl<T: Bytes> Deref for Ref<'_, T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
@@ -87,7 +87,7 @@ impl<T: ByteValue> Deref for Ref<'_, T> {
     }
 }
 
-impl<T: ByteValue> Debug for Ref<'_, T> {
+impl<T: Bytes> Debug for Ref<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
 }
 
@@ -97,7 +97,7 @@ impl<T: ByteValue + Zeroable> From<&mut [T]> for SecretVec<T> {
     }
 }
 
-impl<T: ByteValue> PartialEq for Ref<'_, T> {
+impl<T: Bytes> PartialEq for Ref<'_, T> {
     fn eq(&self, rhs: &Self) -> bool {
         // technically we could punt to `self.boxed.eq(&other.boxed),
         // but the handler for that performs some extra locks and
@@ -107,7 +107,7 @@ impl<T: ByteValue> PartialEq for Ref<'_, T> {
     }
 }
 
-impl<T: ByteValue> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
+impl<T: Bytes> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
     fn eq(&self, rhs: &RefMut<'_, T>) -> bool {
         // technically we could punt to `self.boxed.eq(&other.boxed),
         // but the handler for that performs some extra locks and
@@ -117,19 +117,19 @@ impl<T: ByteValue> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
     }
 }
 
-impl<'a, T: ByteValue> RefMut<'a, T> {
+impl<'a, T: Bytes> RefMut<'a, T> {
     fn new(boxed: &'a mut Box<T>) -> Self {
         Self { boxed: boxed.unlock_mut() }
     }
 }
 
-impl<T: ByteValue> Drop for RefMut<'_, T> {
+impl<T: Bytes> Drop for RefMut<'_, T> {
     fn drop(&mut self) {
         self.boxed.lock();
     }
 }
 
-impl<T: ByteValue> Deref for RefMut<'_, T> {
+impl<T: Bytes> Deref for RefMut<'_, T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
@@ -137,17 +137,17 @@ impl<T: ByteValue> Deref for RefMut<'_, T> {
     }
 }
 
-impl<T: ByteValue> DerefMut for RefMut<'_, T> {
+impl<T: Bytes> DerefMut for RefMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.boxed.as_mut()
     }
 }
 
-impl<T: ByteValue> Debug for RefMut<'_, T> {
+impl<T: Bytes> Debug for RefMut<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
 }
 
-impl<T: ByteValue> PartialEq for RefMut<'_, T> {
+impl<T: Bytes> PartialEq for RefMut<'_, T> {
     fn eq(&self, rhs: &Self) -> bool {
         // technically we could punt to `self.boxed.eq(&other.boxed),
         // but the handler for that performs some extra locks and
@@ -157,7 +157,7 @@ impl<T: ByteValue> PartialEq for RefMut<'_, T> {
     }
 }
 
-impl<T: ByteValue> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
+impl<T: Bytes> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
     fn eq(&self, rhs: &Ref<'_, T>) -> bool {
         // technically we could punt to `self.boxed.eq(&other.boxed),
         // but the handler for that performs some extra locks and
