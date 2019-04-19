@@ -12,7 +12,7 @@ use std::ops::{Deref, DerefMut};
 /// A buffer to arbitrary data which will be zeroed in-place automatically when
 /// it leaves scope.
 ///
-pub struct Secret<T: ByteValue> {
+pub struct Secret<T: Bytes> {
     data: T,
 }
 
@@ -21,7 +21,7 @@ pub struct Buf<'a, T: ConstantEq> {
     data: &'a mut T,
 }
 
-impl<T: ByteValue> Secret<T> {
+impl<T: Bytes> Secret<T> {
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
     pub fn new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         let mut secret = Self { data: T::uninitialized() };
@@ -30,7 +30,7 @@ impl<T: ByteValue> Secret<T> {
     }
 }
 
-impl<T: ByteValue + Zeroable> Secret<T> {
+impl<T: Bytes + Zeroable> Secret<T> {
     pub fn zero<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         Self::new(|mut s| { s.zero(); f(s) })
     }
@@ -40,13 +40,13 @@ impl<T: ByteValue + Zeroable> Secret<T> {
     }
 }
 
-impl<T: ByteValue + Randomizable> Secret<T> {
+impl<T: Bytes + Randomizable> Secret<T> {
     pub fn random<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         Self::new(|mut s| { s.randomize(); f(s) })
     }
 }
 
-impl<T: ByteValue> Drop for Secret<T> {
+impl<T: Bytes> Drop for Secret<T> {
     fn drop(&mut self) {
         sodium::memzero(self.data.as_mut_bytes())
     }

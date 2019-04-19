@@ -9,7 +9,7 @@ mod constant_eq;
 mod randomizable;
 mod zeroable;
 
-pub use bytes::{ByteValue, AsContiguousBytes};
+pub use bytes::{Bytes, AsContiguousBytes};
 pub use constant_eq::ConstantEq;
 pub use randomizable::Randomizable;
 pub use zeroable::Zeroable;
@@ -22,7 +22,7 @@ macro_rules! impls {
 
     (prim $ty:ty) => {
         #[allow(trivial_casts)]
-        unsafe impl ByteValue for $ty {
+        unsafe impl Bytes for $ty {
             fn as_u8_ptr(&self) -> *const u8 { self as *const Self as *const _ }
             fn as_mut_u8_ptr(&mut self) -> *mut u8 { self as *mut Self as *mut _ }
         }
@@ -32,7 +32,7 @@ macro_rules! impls {
 
     (array $ty:ty; ($($n:tt)*)) => {$(
         #[allow(trivial_casts)]
-        unsafe impl ByteValue for [$ty; $n] {
+        unsafe impl Bytes for [$ty; $n] {
             fn as_u8_ptr(&self) -> *const u8 { self.as_ptr() as *const _ }
             fn as_mut_u8_ptr(&mut self) -> *mut u8 { self.as_mut_ptr() as *mut _ }
         }
