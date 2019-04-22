@@ -57,6 +57,12 @@ impl<T: Bytes + Zeroable> SecretVec<T> {
     }
 }
 
+impl<T: Bytes + Zeroable> From<&mut [T]> for SecretVec<T> {
+    fn from(data: &mut [T]) -> Self {
+        Self { boxed: data.into() }
+    }
+}
+
 impl<T: Bytes> Debug for SecretVec<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
 }
@@ -89,12 +95,6 @@ impl<T: Bytes> Deref for Ref<'_, T> {
 
 impl<T: Bytes> Debug for Ref<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
-}
-
-impl<T: ByteValue + Zeroable> From<&mut [T]> for SecretVec<T> {
-    fn from(data: &mut [T]) -> Self {
-        Self { boxed: data.into() }
-    }
 }
 
 impl<T: Bytes> PartialEq for Ref<'_, T> {
