@@ -5,6 +5,13 @@ rust:
   - beta
   - nightly
 
+dist: xenial
+
+addons:
+  apt:
+    packages:
+      - libsodium-dev
+
 env:
   - RUSTFLAGS="-A unknown-lints -D warnings"
 
