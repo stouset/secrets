@@ -241,6 +241,8 @@ impl<T: Bytes + Zeroable> From<&mut [T]> for Box<T> {
     }
 }
 
+unsafe impl<T: Bytes + Send> Send for Box<T> { }
+
 fn mprotect<T>(ptr: *const T, prot: Prot) {
     if !match prot {
         Prot::NoAccess  => unsafe { sodium::mprotect_noaccess(ptr)  },
@@ -374,6 +376,32 @@ mod tests {
         for _ in 0..count {
             boxed.lock()
         }
+    }
+
+    #[test]
+    fn it_can_be_sent_between_threads() {
+        use std::thread;
+        use std::sync::mpsc;
+
+        let (tx, rx) = mpsc::channel();
+
+        let child = thread::spawn(move || {
+            let boxed = Box::<u64>::random(1);
+            let value = boxed.unlock().as_ref()[0];
+
+            // here we send an *unlocked* Box to the rx side; this lets
+            // us make sure that the sent Box isn't dropped when this
+            // thread exits, and that the other thread gets an unlocked
+            // Box that it's responsible for locking
+            tx.send((boxed, value)).unwrap();
+        });
+
+        let (boxed, value) = rx.recv().unwrap();
+
+        assert_eq!(value, boxed.as_ref()[0]);
+
+        child.join().unwrap();
+        boxed.lock();
     }
 
     #[test]
