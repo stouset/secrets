@@ -79,6 +79,12 @@ impl<'a, T: Bytes> Ref<'a, T> {
     }
 }
 
+impl<T: Bytes> Clone for Ref<'_, T> {
+    fn clone(&self) -> Self {
+        Self { boxed: self.boxed.unlock() }
+    }
+}
+
 impl<T: Bytes> Drop for Ref<'_, T> {
     fn drop(&mut self) {
         self.boxed.lock();
@@ -213,6 +219,15 @@ mod test {
         let secret_2 = secret_1;
 
         assert_eq!(*secret_2.borrow(), [0]);
+    }
+
+    #[test]
+    fn it_safely_clones_immutable_references() {
+        let secret   = SecretVec::<u8>::random(4);
+        let borrow_1 = secret.borrow();
+        let borrow_2 = borrow_1.clone();
+
+        assert_eq!(borrow_1, borrow_2);
     }
 
     #[test]
