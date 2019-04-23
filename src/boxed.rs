@@ -269,11 +269,26 @@ mod tests {
 
     #[test]
     fn it_initializes_with_garbage() {
-        let boxed = Box::<u8>::new(4, |_| {});
+        let boxed           = Box::<u8>::new(4, |_| {});
+        let unboxed : &[u8] = boxed.unlock().as_ref();
 
-        // TODO: technically we should be testing for 0xdb, but on older
-        // versions of libsodium this will be 0xd0
-        assert_ne!(boxed.unlock().as_ref(), b"\x00\x00\x00\x00");
+        // sodium changed the value of the garbage byte they used, so we
+        // allocate a byte and see what's inside to probe for the
+        // specific value
+        let garbage = unsafe {
+            let garbage_ptr  = sodium::allocarray::<u8>(1);
+            let garbage_byte = *garbage_ptr;
+
+            sodium::free(garbage_ptr);
+
+            vec![garbage_byte; unboxed.len()]
+        };
+
+        // sanity-check the garbage byte in case we have a bug in how we
+        // probe for it
+        assert_ne!(garbage, vec![0; garbage.len()]);
+        assert_eq!(unboxed, &garbage[..]);
+
         boxed.lock();
     }
 
