@@ -1,6 +1,8 @@
 language: rust
 
 rust:
+  - 1.32.0
+  - 1.33.0
   - stable
   - beta
   - nightly
@@ -13,7 +15,9 @@ addons:
       - libsodium-dev
 
 env:
-  - RUSTFLAGS="-A unknown-lints -D warnings"
+  global:
+    - CARGO_TERM_VERBOSE=true
+    - RUSTFLAGS="-A unknown-lints -D warnings"
 
 before_script:
   - rustup component add clippy
@@ -21,7 +25,10 @@ before_script:
 script:
   - cargo build
   - cargo test
-  - cargo clippy
+  - >
+    if [[ "${TRAVIS_RUST_VERSION}" = 'beta' ]]; then
+      cargo clippy
+    fi
 
 cache: cargo
 
