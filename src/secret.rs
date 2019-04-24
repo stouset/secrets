@@ -77,7 +77,7 @@ pub struct Secret<T: Bytes> {
 }
 
 #[derive(Eq)]
-pub struct Buf<'a, T: ConstantEq> {
+pub struct RefMut<'a, T: ConstantEq> {
     data: &'a mut T,
 }
 
@@ -87,7 +87,7 @@ impl<T: Bytes> Secret<T> {
     /// a wrapper to the protected memory.
     ///
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
-    pub fn new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
+    pub fn new<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
         let mut secret = Self {
             data: T::uninitialized()
         };
@@ -96,7 +96,7 @@ impl<T: Bytes> Secret<T> {
             panic!("secrets: unable to mlock memory for a Secret")
         };
 
-        f(Buf::new(&mut secret.data));
+        f(RefMut::new(&mut secret.data));
     }
 }
 
@@ -105,7 +105,7 @@ impl<T: Bytes + Zeroable> Secret<T> {
     /// Creates a new `Secret` filled with zeroed bytes and invokes the
     /// callback with a wrapper to the protected memory.
     ///
-    pub fn zero<F>(f: F) where F: FnOnce(Buf<'_, T>) {
+    pub fn zero<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
         Self::new(|mut s| { s.zero(); f(s) })
     }
 
@@ -114,7 +114,7 @@ impl<T: Bytes + Zeroable> Secret<T> {
     /// immediately zeroes out the memory of the data being moved in.
     /// Invokes the callback with a wrapper to the protected memory.
     ///
-    pub fn from<F>(v: &mut T, f: F) where F: FnOnce(Buf<'_, T>) {
+    pub fn from<F>(v: &mut T, f: F) where F: FnOnce(RefMut<'_, T>) {
         Self::new(|mut s| { unsafe { v.transfer(s.borrow_mut()) }; f(s) })
     }
 }
@@ -124,7 +124,7 @@ impl<T: Bytes + Randomizable> Secret<T> {
     /// Creates a new `Secret` filled with random bytes and invokes the
     /// callback with a wrapper to the protected memory.
     ///
-    pub fn random<F>(f: F) where F: FnOnce(Buf<'_, T>) {
+    pub fn random<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
         Self::new(|mut s| { s.randomize(); f(s) })
     }
 }
@@ -137,38 +137,38 @@ impl<T: Bytes> Drop for Secret<T> {
     }
 }
 
-impl<'a, T: ConstantEq> Buf<'a, T> {
+impl<'a, T: ConstantEq> RefMut<'a, T> {
     pub(crate) fn new(data: &'a mut T) -> Self {
         Self { data }
     }
 }
 
-impl<T: Bytes + Clone> Clone for Buf<'_, T> {
+impl<T: Bytes + Clone> Clone for RefMut<'_, T> {
     fn clone(&self) -> Self {
         panic!("secrets: a Secret may not be cloned")
     }
 }
 
-impl<T: ConstantEq> Debug for Buf<'_, T> {
+impl<T: ConstantEq> Debug for RefMut<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{{ {} bytes redacted }}", self.data.size())
     }
 }
 
-impl<T: ConstantEq> Deref for Buf<'_, T> {
+impl<T: ConstantEq> Deref for RefMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         self.data
     }
 }
-impl<T: ConstantEq> DerefMut for Buf<'_, T> {
+impl<T: ConstantEq> DerefMut for RefMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.data
     }
 }
 
-impl<T: ConstantEq> PartialEq for Buf<'_, T> {
+impl<T: ConstantEq> PartialEq for RefMut<'_, T> {
     fn eq(&self, rhs: &Self) -> bool {
         self.data.constant_eq(rhs.data)
     }
