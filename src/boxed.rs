@@ -431,20 +431,21 @@ mod tests {
 
         let child = thread::spawn(move || {
             let boxed = Box::<u64>::random(1);
-            let value = boxed.unlock().as_ref()[0];
+            let value = boxed.unlock().as_ref().to_vec();
 
             // here we send an *unlocked* Box to the rx side; this lets
             // us make sure that the sent Box isn't dropped when this
             // thread exits, and that the other thread gets an unlocked
             // Box that it's responsible for locking
-            tx.send((boxed, value)).unwrap();
+            tx.send((boxed, value)).expect("failed to send to channel");
         });
 
-        let (boxed, value) = rx.recv().unwrap();
+        let (boxed, value) = rx.recv().expect("failed to read from channel");
 
-        assert_eq!(value, boxed.as_ref()[0]);
+        assert_eq!(Prot::ReadOnly, boxed.prot.get());
+        assert_eq!(value,          boxed.as_ref());
 
-        child.join().unwrap();
+        child.join().expect("child terminated");
         boxed.lock();
     }
 

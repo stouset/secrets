@@ -17,6 +17,7 @@
 #![warn(unused)]
 
 #![warn(bare_trait_objects)]
+#![warn(dead_code)]
 #![warn(missing_copy_implementations)]
 #![warn(missing_debug_implementations)]
 // #![warn(missing_docs)]
@@ -29,9 +30,9 @@
 #![warn(unused_lifetimes)]
 #![warn(unused_qualifications)]
 #![warn(unused_results)]
+#![warn(unsafe_code)]
 #![warn(variant_size_differences)]
 
-#![warn(unsafe_code)]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::all))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::pedantic))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::nursery))]
@@ -52,6 +53,8 @@
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::unimplemented))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::use_debug))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::wrong_pub_self_convention))]
+
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 
 mod ffi {
     pub(crate) mod sodium;
