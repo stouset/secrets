@@ -17,6 +17,9 @@ extern "C" {
     fn sodium_allocarray(count: size_t, size: size_t) -> *mut c_void;
     fn sodium_free(ptr: *mut c_void);
 
+    fn sodium_mlock(ptr: *const c_void, len: size_t) -> c_int;
+    fn sodium_munlock(ptr: *const c_void, len: size_t) -> c_int;
+
     fn sodium_mprotect_noaccess(ptr: *const c_void) -> c_int;
     fn sodium_mprotect_readonly(ptr: *const c_void) -> c_int;
     fn sodium_mprotect_readwrite(ptr: *const c_void) -> c_int;
@@ -47,6 +50,14 @@ pub(crate) unsafe fn allocarray<T>(count: usize) -> *mut T {
 
 pub(crate) unsafe fn free<T>(ptr: *mut T) {
     sodium_free(ptr as *mut _)
+}
+
+pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
+    sodium_mlock(ptr as *const _, mem::size_of::<T>()) == 0
+}
+
+pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
+    sodium_munlock(ptr as *const _, mem::size_of::<T>()) == 0
 }
 
 pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {

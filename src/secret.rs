@@ -24,7 +24,13 @@ pub struct Buf<'a, T: ConstantEq> {
 impl<T: Bytes> Secret<T> {
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
     pub fn new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
-        let mut secret = Self { data: T::uninitialized() };
+        let mut secret = Self {
+            data: T::uninitialized()
+        };
+
+        if unsafe { !sodium::mlock(&secret.data) } {
+            panic!("secrets: unable to mlock memory for a Secret")
+        };
 
         f(Buf::new(&mut secret.data));
     }
@@ -48,7 +54,9 @@ impl<T: Bytes + Randomizable> Secret<T> {
 
 impl<T: Bytes> Drop for Secret<T> {
     fn drop(&mut self) {
-        sodium::memzero(self.data.as_mut_bytes())
+        if unsafe { !sodium::munlock(&self.data) } {
+            panic!("secrets: unable to munlock memory for a Secret")
+        };
     }
 }
 
