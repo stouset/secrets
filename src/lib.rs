@@ -93,10 +93,10 @@ mod ffi {
 }
 
 mod boxed;
+mod secret;
+// mod secret_box;
+mod secret_vec;
 
-pub mod secret;
-// pub mod secret_box;
-pub mod secret_vec;
 pub mod traits;
 
 pub use secret::Secret;
