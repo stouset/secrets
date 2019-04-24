@@ -1,3 +1,7 @@
+//!
+//! Marker traits to allow types to be contained as secrets.
+//!
+
 #![allow(unsafe_code)]
 
 // `clippy` currently warns when trait functions could be `const fn`s, but this

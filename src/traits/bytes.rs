@@ -1,10 +1,14 @@
 use std::mem;
 use std::slice;
 
-/// Marker value for uninitialized data. This value is reused from
-/// `src/libsodium/sodium/utils.c` in libsodium. The lowest byte was chosen so
-/// that, if accidentally used as the LSB of a pointer, it would be unaligned
-/// and thus more likely to trigger noticeable bugs.
+///
+/// Marker value for uninitialized data.
+///
+/// This value is reused from `src/libsodium/sodium/utils.c` in
+/// libsodium. The lowest byte was chosen so that, if accidentally used
+/// as the LSB of a pointer, it would be unaligned and thus more likely
+/// to trigger noticeable bugs.
+///
 const GARBAGE_VALUE: u8 = 0xdb;
 
 pub unsafe trait Bytes : Sized + Copy {
