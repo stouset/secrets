@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
-
 use std::mem;
 use std::slice;
 
