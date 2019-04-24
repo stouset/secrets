@@ -66,6 +66,12 @@ impl<'a, T: ConstantEq> Buf<'a, T> {
     }
 }
 
+impl<T: Bytes + Clone> Clone for Buf<'_, T> {
+    fn clone(&self) -> Self {
+        panic!("secrets: a Secret may not be cloned")
+    }
+}
+
 impl<T: ConstantEq> Debug for Buf<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{{ {} bytes redacted }}", self.data.size())
@@ -179,5 +185,12 @@ mod tests {
                 format!("{:?}", s),
             );
         })
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: a Secret may not be cloned")]
+    fn it_panics_when_cloned() {
+        #[cfg_attr(feature = "cargo-clippy", allow(clippy::redundant_clone))]
+        Secret::<u16>::zero(|s| { let _ = s.clone(); });
     }
 }
