@@ -9,9 +9,69 @@ use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
 ///
-/// A buffer to arbitrary data which will be zeroed in-place automatically when
-/// it leaves scope.
+/// A type for protecting secrets allocated on the stack.
 ///
+/// Stack-allocated secrets have distinct security needs from
+/// heap-allocated secrets, and should be preferred when possible. They
+/// provide the following guarantees:
+///
+/// * `mlock()` is called on the underlying memory
+/// * `munlock()` is called on the underlying memory when no longer in use
+/// * the underlying memory is zeroed out when no longer in use
+/// * they are borrowed for their entire lifespan, so cannot be moved
+/// * they are best-effort compared in constant time
+/// * they are best-effort prevented from being printed by `Debug`
+/// * they are best-effort prevented from being `Clone`d
+///
+/// To fulfill these guarantees, `Secret`s are constructed in an
+/// atypical pattern. Rather than having `new()` return a newly-created
+/// instance, `new()` accepts a callback argument that is provided with
+/// a mutably borrowed wrapper around the data in question. This wrapper
+/// `Deref`'s into the desired type, with replacement implementations of
+/// `Debug`, `PartialEq`, and `Eq` to prevent accidental misuse.
+///
+/// Users *must* take care when dereferencing secrets as this will
+/// provide direct access to the underlying type. If the bare type
+/// implements traits like `Clone`, `Debug`, and `PartialEq`, those
+/// methods can be called directly and will not benefit from the
+/// protections provided by this wrapper.
+///
+/// Users must take *extrme* care when working with `Copy` types, as
+/// assignment will immediately cause protected memory to be copied and
+/// those copies will not inherit the protections provided by this
+/// wrapper.
+///
+/// # Example: generate a cryptographically-random 128-bit Secret
+///
+/// Initialize a `Secret` with cryptographically random data:
+///
+/// ```
+/// # use secrets::Secret;
+/// Secret::<[u8; 16]>::random(|s| {
+///    // use `s` as if it were a `[u8; 16]`
+/// });
+/// ```
+///
+/// # Example: move mutable data into a Secret
+///
+/// Existing data can be moved into a Secret. When doing so, we make a
+/// best-effort attempt to zero out the data in the original location.
+/// Any prior copies will be unaffected, so please exercise as much
+/// caution as possible when handling data before it can be protected.
+///
+/// ```
+/// # use secrets::Secret;
+/// let mut value = [1u8, 2, 3, 4];
+///
+/// // the contents of `value` will be copied into the Secret before
+/// // being zeroed out
+/// Secret::from(&mut value, |s| {
+///     assert_eq!(*s, [1, 2, 3, 4]);
+/// });
+///
+/// // the contents of `value` have been zeroed
+/// assert_eq!(value, [0, 0, 0, 0]);
+/// ```
 pub struct Secret<T: Bytes> {
     data: T,
 }
@@ -22,6 +82,10 @@ pub struct Buf<'a, T: ConstantEq> {
 }
 
 impl<T: Bytes> Secret<T> {
+    ///
+    /// Creates a new `Secret` and invokes the provided callback with
+    /// a wrapper to the protected memory.
+    ///
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
     pub fn new<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         let mut secret = Self {
@@ -37,16 +101,29 @@ impl<T: Bytes> Secret<T> {
 }
 
 impl<T: Bytes + Zeroable> Secret<T> {
+    ///
+    /// Creates a new `Secret` filled with zeroed bytes and invokes the
+    /// callback with a wrapper to the protected memory.
+    ///
     pub fn zero<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         Self::new(|mut s| { s.zero(); f(s) })
     }
 
+    ///
+    /// Creates a new `Secret` from existing, unprotected data, and
+    /// immediately zeroes out the memory of the data being moved in.
+    /// Invokes the callback with a wrapper to the protected memory.
+    ///
     pub fn from<F>(v: &mut T, f: F) where F: FnOnce(Buf<'_, T>) {
         Self::new(|mut s| { unsafe { v.transfer(s.borrow_mut()) }; f(s) })
     }
 }
 
 impl<T: Bytes + Randomizable> Secret<T> {
+    ///
+    /// Creates a new `Secret` filled with random bytes and invokes the
+    /// callback with a wrapper to the protected memory.
+    ///
     pub fn random<F>(f: F) where F: FnOnce(Buf<'_, T>) {
         Self::new(|mut s| { s.randomize(); f(s) })
     }

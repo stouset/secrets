@@ -43,19 +43,20 @@ impl<T: Bytes> Box<T> {
             panic!("secrets: failed to initialize libsodium");
         }
 
+        // `sodium::allocarray` returns a memory location that already
+        // allows r/w access
         let ptr = NonNull::new(unsafe { sodium::allocarray::<T>(len) })
             .expect("secrets: failed to allocate memory");
 
+        // NOTE: We technically could save a little extra work here by
+        // initializing the struct with Prot::NoAccess and a zero
+        // refcount, and manually calling `mprotect` when finished with
+        // initialization. However, the `as_mut()` call performs sanity
+        // checks that ensure it's `Prot::ReadWrite` so it's easier to
+        // just send everything through the "normal" code paths.
         let mut boxed = Self {
             ptr,
             len,
-
-            // `sodium::allocarray` allocates memory read/write, so we'll
-            // need to manually lock it after initialization
-            //
-            // TODO: setting these back is extra work, we could just
-            // call `mprotect` directly instead of running through the
-            // code paths that change these variables
             prot: Cell::new(Prot::ReadWrite),
             refs: Cell::new(1),
         };
