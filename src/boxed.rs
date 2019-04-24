@@ -197,13 +197,42 @@ impl<T: Bytes> Debug for Box<T> {
 
 impl<T: Bytes> AsRef<[T]> for Box<T> {
     fn as_ref(&self) -> &[T] {
-        unsafe { slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+        // NOTE: after some consideration, I've decided that this method (and
+        // its AsMut sister) *is* safe, so `debug_assert` is used instead of an
+        // `assert` or `panic` to test against misuse without a performance
+        // penalty in release mode.
+        //
+        // Using the retuned ref might cause a SIGSEGV, but this is not UB (in
+        // fact, it's explicitly defined behavior!), cannot cause a data race,
+        // cannot produce an invalid primitive, nor can it break any other
+        // guarantee of "safe Rust". Just a SIGSEGV.
+        //
+        // Note that while this protects against taking a ref against an
+        // locked Box, it doesn't protect against taking a ref to an unlocked
+        // Box and then locking it while the ref is outstanding.
+        debug_assert!(self.prot.get() != Prot::NoAccess,
+            "secrets: may not call Box::AsRef while locked");
+
+        unsafe {
+            slice::from_raw_parts(
+                self.ptr.as_ptr(),
+                self.len
+            )
+        }
     }
 }
 
 impl<T: Bytes> AsMut<[T]> for Box<T> {
     fn as_mut(&mut self) -> &mut [T] {
-        unsafe { slice::from_raw_parts_mut(self.ptr.as_mut(), self.len) }
+        debug_assert_eq!(self.prot.get(), Prot::ReadWrite,
+            "secrets: may not call Box::AsMut unless mutably unlocked");
+
+        unsafe {
+            slice::from_raw_parts_mut(
+                self.ptr.as_mut(),
+                self.len
+            )
+        }
     }
 }
 
@@ -420,6 +449,26 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "secrets: may not call Box::AsRef while locked")]
+    fn it_doesnt_allow_as_ref_while_locked() {
+        let _ = Box::<u8>::zero(1).as_ref();
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: may not call Box::AsMut unless mutably unlocked")]
+    fn it_doesnt_allow_as_mut_while_locked() {
+        let _ = Box::<u8>::zero(1).as_mut();
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: may not call Box::AsMut unless mutably unlocked")]
+    fn it_doesnt_allow_as_mut_while_readonly() {
+        let mut boxed = Box::<u8>::zero(1);
+        let _ = boxed.unlock();
+        let _ = boxed.as_mut();
+    }
+
+    #[test]
     #[should_panic(expected = "secrets: retained too many times")]
     fn it_doesnt_allow_overflowing_readers() {
         let boxed = Box::<[u64; 8]>::zero(4);
@@ -472,23 +521,14 @@ mod tests_sigsegv {
     #[test]
     fn it_kills_attempts_to_read_while_locked() {
         assert_sigsegv(|| {
-            let boxed = Box::<u64>::zero(4);
-            let val : &[u64] = boxed.as_ref();
-
-            let _ = sodium::memcmp(
-                val.as_bytes(),
-                val.as_bytes()
-            );
+            let _ = unsafe { Box::<u32>::zero(1).ptr.as_ptr().read() };
         });
     }
 
     #[test]
     fn it_kills_attempts_to_write_while_locked() {
         assert_sigsegv(|| {
-            let mut boxed = Box::<u64>::zero(4);
-            let val : &mut [u64] = boxed.as_mut();
-
-            val.swap(0, 1);
+            unsafe { Box::<u64>::zero(1).ptr.as_ptr().write(1) };
         });
     }
 
