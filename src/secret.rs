@@ -15,8 +15,8 @@ use std::ops::{Deref, DerefMut};
 /// heap-allocated secrets, and should be preferred when possible. They
 /// provide the following guarantees:
 ///
-/// * `mlock()` is called on the underlying memory
-/// * `munlock()` is called on the underlying memory when no longer in use
+/// * `mlock(2)` is called on the underlying memory
+/// * `munlock(2)` is called on the underlying memory when no longer in use
 /// * the underlying memory is zeroed out when no longer in use
 /// * they are borrowed for their entire lifespan, so cannot be moved
 /// * they are best-effort compared in constant time
@@ -39,7 +39,8 @@ use std::ops::{Deref, DerefMut};
 /// Users must take *extrme* care when working with `Copy` types, as
 /// assignment will immediately cause protected memory to be copied and
 /// those copies will not inherit the protections provided by this
-/// wrapper.
+/// wrapper. We strongly recommend not using this library around types
+/// that implement `Copy`.
 ///
 /// # Example: generate a cryptographically-random 128-bit Secret
 ///
@@ -48,7 +49,7 @@ use std::ops::{Deref, DerefMut};
 /// ```
 /// # use secrets::Secret;
 /// Secret::<[u8; 16]>::random(|s| {
-///    // use `s` as if it were a `[u8; 16]`
+///     // use `s` as if it were a `[u8; 16]`
 /// });
 /// ```
 ///
@@ -72,6 +73,7 @@ use std::ops::{Deref, DerefMut};
 /// // the contents of `value` have been zeroed
 /// assert_eq!(value, [0, 0, 0, 0]);
 /// ```
+///
 pub struct Secret<T: Bytes> {
     data: T,
 }
@@ -222,9 +224,7 @@ mod tests {
 
     #[test]
     fn it_initializes_from_values() {
-        let mut value = 5;
-
-        Secret::from(&mut value, |s| assert_eq!(*s, 5_u8));
+        Secret::from(&mut 5, |s| assert_eq!(*s, 5_u8));
     }
 
     #[test]

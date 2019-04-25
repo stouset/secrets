@@ -4,6 +4,104 @@ use crate::traits::*;
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
+///
+/// A type for protecting secrets allocated on the heap.
+///
+/// Heap-allocated secrets have distinct security needs from
+/// stack-allocated ones. They provide the following guarantees:
+///
+/// * any attempt to access the memory without having been borrowed
+///   appropriately will result in immediate program termination; the memory is
+///   protected with `mprotect(2)` as follows:
+///   * `PROT_NONE` when the `SecretVec` has no outstanding borrows
+///   * `PROT_READ` when it has outstanding immutable borrows
+///   * `PROT_WRITE` when it has an outstanding mutable borrow
+/// * the allocated region has guard pages preceding and following it, both
+///   set to `PROT_NONE`, ensuring that overflows and (large enough) underflows
+///   cause immediate program termination
+/// * a canary is placed just before the memory location (and after the guard
+///   page) in order to detect smaller underflows; if this memory has been
+///   written to (and the canary modified), the program will immediately abort
+///   when the `SecretVec` is `drop`ped
+/// * `mlock(2)` is called on the underlying memory
+/// * `munlock(2)` is called on the underlying memory when no longer in use
+/// * the underlying memory is zeroed when no longer in use
+/// * they are best-effort compared in constant time
+/// * they are best-effort prevented from being printed by `Debug`
+/// * they are best-effort protected from `Clone`ing the interior data
+///
+/// To fulfill these guarantees, `SecretVec` uses an API similar to (but
+/// not exactly like) that of `RefCell`. You must call `borrow()` to
+/// (immutably) borrow the protected data inside and you must call
+/// `borrow_mut()` to access it mutably. Unlike `RefCell` which hides
+/// interior mutability with immutable borrows, these two calls follow
+/// standard borrowing rules: `borrow_mut` takes a `&mut self`, so the
+/// borrow checker statically ensures the exclusivity of mutable
+/// borrows.
+///
+/// These `borrow` and `borrow_mut` calls return a wrapper around the
+/// interior that ensures the memory is re-`mprotect`ed when all active
+/// borrows leave scope. These wrappers `Deref` to the underlying value
+/// so you can to work with them as if they were the underlying type,
+/// with a few excepitons: they have specific implementations for
+/// `Clone`, `Debug`, `PartialEq`, and `Eq` that try to ensure that the
+/// underlying memory isn't copied out of protected area, that the
+/// contents are never printed, and that two secrets are only ever
+/// compared in constant time.
+///
+/// Care *must* be taken not to over-aggressively dereference these
+/// wrappers, as once you're working with the real underlying type, we
+/// can't prevent direct calls to their implementations of these traits.
+/// Care must also be taken not to call any other methods on these types
+/// that introduce copying.
+///
+/// # Example: generate a cryptographically-random 128-bit `SecretVec`
+///
+/// Initialize a `SecretVec` with cryptographically random data:
+///
+/// ```
+/// # use secrets::SecretVec;
+/// let secret = SecretVec::<u8>::random(128);
+///
+/// assert_eq!(secret.len(), 128);
+/// ```
+///
+/// # Example: move mutable data into a `SecretVec`
+///
+/// Existing data can be moved into a `SecretVec`. When doing so, we
+/// make a best-effort attempt to zero out the data in the original
+/// location. Any prior copies will be unaffected, so please exercise as
+/// much caution as possible when handling data before it can be
+/// protected.
+///
+/// ```
+/// # use secrets::SecretVec;
+/// let mut value = [1u8, 2, 3, 4];
+///
+/// // the contents of `value` will be copied into the SecretVec before
+/// // being zeroed out
+/// let secret = SecretVec::from(&mut value[..]);
+///
+/// // the contents of `value` have been zeroed
+/// assert_eq!(value, [0, 0, 0, 0]);
+/// ```
+///
+/// Example: borrowing a `SecretVec`
+///
+/// Borrow a `SecretVec` in order to use the wrapped contents.
+///
+/// ```
+/// # use secrets::SecretVec;
+/// let secret   = SecretVec::<u8>::from(&mut [1, 2][..]);
+/// let secret_r = secret.borrow();
+///
+/// // use secret_r as if it were a `&[u8]`
+///
+/// // If uncommented, the line below would prevent compilation due to
+/// // the outstanding immutable borrow already held by `secret_r`.
+/// // let secret_w = secret.borrow_mut();
+/// ```
+///
 #[derive(Clone, Eq)]
 pub struct SecretVec<T: Bytes> {
     boxed: Box<T>,
