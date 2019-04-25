@@ -37,11 +37,13 @@ use std::ops::{Deref, DerefMut};
 /// those methods can be called directly and will not benefit from the
 /// protections provided by this wrapper.
 ///
-/// Users must take *extrme* care when working with [`Copy`] types, as
-/// assignment will immediately cause protected memory to be copied and
-/// those copies will not inherit the protections provided by this
-/// wrapper. We strongly recommend not using this library around types
-/// that implement [`Copy`].
+/// Users *must* also take care to avoid unintentionally invoking
+/// [`Copy`] on the underlying data, as doing so will result in
+/// secret data being copied out of the [`Secret`], thus losing the
+/// protections provided by this library. Be careful not to invoke
+/// methods that take ownership of `self` or functions that move
+/// parameters with secret data, since doing so will implicitly create
+/// copies.
 ///
 /// # Example: generate a cryptographically-random 128-bit [`Secret`]
 ///
