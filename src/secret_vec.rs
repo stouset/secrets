@@ -66,9 +66,9 @@ use std::ops::{Deref, DerefMut};
 ///
 /// ```
 /// # use secrets::SecretVec;
-/// let secret = SecretVec::<u8>::random(128);
+/// let secret = SecretVec::<u8>::random(16);
 ///
-/// assert_eq!(secret.len(), 128);
+/// assert_eq!(secret.size(), 16);
 /// ```
 ///
 /// # Example: move mutable data into a [`SecretVec`]
@@ -91,21 +91,37 @@ use std::ops::{Deref, DerefMut};
 /// assert_eq!(value, [0, 0, 0, 0]);
 /// ```
 ///
-/// Example: borrowing a [`SecretVec`]
+/// # Example: compilation failure from incompatible borrows
 ///
-/// Borrow a [`SecretVec`] in order to use the wrapped contents.
+/// Unlike [`RefCell`][refcell], which hides interior mutability behind
+/// immutable borrows, a [`SecretVec`] can't have an outstanding
+/// [`borrow`](SecretVec::borrow) and
+/// [`borrow_mut`](SecretVec::borrow_mut) at the same time.
 ///
-/// ```
+/// ```compile_fail
 /// # use secrets::SecretVec;
-/// let secret   = SecretVec::<u8>::from(&mut [1, 2][..]);
-/// let secret_r = secret.borrow();
+/// let mut secret   = SecretVec::<u32>::zero(8);
+/// let     secret_r = secret.borrow();
 ///
-/// // use secret_r as if it were a `&[u8]`
+/// // error[E0502]: cannot borrow `secret` as mutable because it is
+/// // also borrowed as immutable
+/// secret.borrow_mut();
+/// ```
 ///
-/// // If uncommented, the line below would prevent compilation due to
-/// // the outstanding immutable borrow already held by `secret_r`.
-/// //
-/// // let secret_w = secret.borrow_mut();
+/// # Example: compilation failure from multiple mutable borrows
+///
+/// Unlike [`RefCell`][refcell], which hides interior mutability behind
+/// immutable borrows, a [`SecretVec`] can't have multiple outstanding
+/// [`borrow_mut`](SecretVec::borrow_mut)s at the same time.
+///
+/// ```compile_fail
+/// # use secrets::SecretVec;
+/// let mut secret   = SecretVec::<u32>::zero(8);
+/// let     secret_w = secret.borrow_mut();
+///
+/// // error[E0499]: cannot borrow `secret` as mutable more than once
+/// // at a time
+/// secret.borrow_mut();
 /// ```
 ///
 /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
@@ -135,44 +151,112 @@ impl<T: Bytes> SecretVec<T> {
     /// its contents. The value yielded to the initialization callback
     /// will be filled with garbage bytes.
     ///
+    /// Example:
+    ///
+    /// ```
+    /// # use secrets::SecretVec;
+    /// let secret = SecretVec::<u8>::new(2, |s| {
+    ///     s[0] = 0x10;
+    ///     s[1] = 0x20;
+    /// });
+    ///
+    /// assert_eq!(*secret.borrow(), [0x10, 0x20]);
+    /// ```
+    ///
     pub fn new<F>(len: usize, f: F) -> Self where F: FnOnce(&mut [T]) {
         Self { boxed: Box::new(len, f) }
     }
 
+    ///
+    /// Returns the number of elements in the [`SecretVec`].
+    ///
     pub fn len(&self) -> usize {
         self.boxed.len()
     }
 
+    ///
+    /// Returns true if length of the [`SecretVec`] is zero.
+    ///
     pub fn is_empty(&self) -> bool {
         self.boxed.is_empty()
     }
 
+    ///
+    /// Returns the size in bytes of the [`SecretVec`].
+    ///
     pub fn size(&self) -> usize {
         self.boxed.size()
     }
 
+    ///
+    /// Immutably borrows the contents of the [`SecretVec`]. Returns a
+    /// wrapper that ensures the underlying memory is
+    /// [`mprotect(2)`][mprotect]ed once all borrows exit scope.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use secrets::SecretVec;
+    /// let secret    = SecretVec::<u8>::from(&mut [1, 2][..]);
+    /// let secret_r1 = secret.borrow();
+    /// let secret_r2 = secret.borrow();
+    ///
+    /// assert_eq!(secret_r1[0], 1);
+    /// assert_eq!(secret_r2[1], 2);
+    /// assert_eq!(secret_r1, secret_r2);
+    /// ```
+    ///
     pub fn borrow(&self) -> Ref<'_, T> {
         Ref::new(&self.boxed)
     }
 
+    ///
+    /// Mutably borrows the contents of the [`SecretVec`]. Returns a
+    /// wrapper that ensures the underlying memory is
+    /// [`mprotect(2)`][mprotect]ed once this borrow exits scope.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use secrets::SecretVec;
+    /// let mut secret   = SecretVec::<u8>::zero(2);
+    /// let mut secret_w = secret.borrow_mut();
+    ///
+    /// secret_w[0] = 0xaa;
+    ///
+    /// assert_eq!(*secret_w, [0xaa, 0x00]);
+    /// ```
+    ///
     pub fn borrow_mut(&mut self) -> RefMut<'_, T> {
         RefMut::new(&mut self.boxed)
     }
 }
 
 impl<T: Bytes + Randomizable> SecretVec<T> {
+    ///
+    /// Creates a new [`SecretVec`] with  `len` elements, filled with
+    /// cryptographically-random bytes.
+    ///
     pub fn random(len: usize) -> Self {
         Self { boxed: Box::random(len) }
     }
 }
 
 impl<T: Bytes + Zeroable> SecretVec<T> {
+    ///
+    /// Creates a new [`SecretVec`] with  `len` elements, filled with
+    /// zeroes.
+    ///
     pub fn zero(len: usize) -> Self {
         Self { boxed: Box::zero(len) }
     }
 }
 
 impl<T: Bytes + Zeroable> From<&mut [T]> for SecretVec<T> {
+    ///
+    /// Creates a new [`SecretVec`] from existing, unprotected data, and
+    /// immediately zeroes out the memory of the data being moved in.
+    ///
     fn from(data: &mut [T]) -> Self {
         Self { boxed: data.into() }
     }

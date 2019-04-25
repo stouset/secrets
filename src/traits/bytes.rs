@@ -9,6 +9,13 @@ use std::slice;
 /// as the LSB of a pointer, it would be unaligned and thus more likely
 /// to trigger noticeable bugs.
 ///
+/// Note that this value was changed in libsodium from an earlier value
+/// of `0xd0`. This library makes no specific guarantees to the exact
+/// value of this constant, nor that it will always produce consistent
+/// garbage values (e.g., memory we fill with garbage values will use
+/// this value, but memory allocated by libsodium will use whatever
+/// value is defined by the spefiic version of that library being used).
+///
 const GARBAGE_VALUE: u8 = 0xdb;
 
 pub unsafe trait Bytes : Sized + Copy {
