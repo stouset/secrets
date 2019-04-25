@@ -1,8 +1,11 @@
+os:
+  - linux
+  - osx
+
 language: rust
 
 rust:
-  - 1.32.0
-  - 1.33.0
+  - 1.32.0 # earliest supported stable release
   - stable
   - beta
   - nightly
@@ -33,6 +36,28 @@ script:
 cache: cargo
 
 matrix:
+  fast_finish: true
+
   allow_failures:
     - rust: nightly
-  fast_finish: true
+
+  include:
+    - name: coverage
+      rust: stable
+      os: linux
+      dist: xenial
+      sudo: required
+
+      addons:
+        apt:
+          packages:
+            - libsodium-dev
+            - libcurl4-openssl-dev
+            - libelf-dev
+            - libdw-dev
+            - binutils-dev
+            - cmake
+
+      script:
+        - cargo install cargo-travis --debug || echo "cargo-travis has been already installed"
+        - cargo coveralls
