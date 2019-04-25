@@ -35,6 +35,7 @@ before_script:
 script:
   - cargo build
   - cargo test
+  - cargo bench
   - >
     if [[ "${TRAVIS_RUST_VERSION}" = 'beta' ]]; then
       cargo clippy
