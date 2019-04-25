@@ -5,7 +5,7 @@
 use std::mem;
 use std::sync::{Once, ONCE_INIT};
 
-use libc::{c_int, c_void, size_t};
+use libc::{self, c_int, c_void, size_t};
 
 static     INIT:        Once = ONCE_INIT;
 static mut INITIALIZED: bool = false;
@@ -37,7 +37,20 @@ pub(crate) fn init() -> bool {
             // assert sizeof for casts
             debug_assert_eq!(mem::size_of::<usize>(), mem::size_of::<size_t>());
 
-            INITIALIZED = sodium_init() != -1;
+            // core dumps should be disabled for any programs dealing with
+            // cryptographic secrets
+            let rlimit = libc::rlimit {
+                rlim_cur: 0,
+                rlim_max: 0,
+            };
+
+            // sodium_init returns 0 on success, -1 on failure, and 1 if
+            // the library is already initialized; someone else might
+            // have already initialized it before us, so we only care
+            // about failure
+            INITIALIZED =
+                ( libc::setrlimit(libc::RLIMIT_CORE, &rlimit) != -1 ) &&
+                ( sodium_init() != -1 );
         });
 
         INITIALIZED
