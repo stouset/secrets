@@ -18,14 +18,26 @@ use std::slice;
 ///
 const GARBAGE_VALUE: u8 = 0xdb;
 
+///
+/// A marker trait for types whose size is known at compile time and can
+/// be treated as raw buckets of bytes. Any type that implements `Bytes`
+/// must be able to assume any arbitrary value.
+///
 pub unsafe trait Bytes : Sized + Copy {
-    fn as_u8_ptr(&self) -> *const u8;
-    fn as_mut_u8_ptr(&mut self) -> *mut u8;
-
-    // TODO: when MaybeUninit is stable, rework this to return
-    // actually-uninitialized data, and have callers either write zeroes
-    // or garbage or real data into it as necessary
+    ///
+    /// Returns an uninitialized value.
+    ///
+    /// Note that this is *not* the same as [`mem::uninitialized`].
+    /// Values returned by this function are guaranteed to be set to a
+    /// well-defined bit pattern, though this function makes no
+    /// guarantees to what specific bit pattern will be used. The bit
+    /// pattern has been chosen to maximize the likelihood of catching
+    /// bugs due to uninitialized data.
+    ///
     fn uninitialized() -> Self {
+        // TODO: when MaybeUninit is stable, rework this to return
+        // actually-uninitialized data, and have callers either write
+        // zeroes or garbage or real data into it as necessary
         unsafe {
             let mut val : Self = mem::uninitialized();
             val.as_mut_u8_ptr().write_bytes(GARBAGE_VALUE, val.size());
@@ -33,8 +45,27 @@ pub unsafe trait Bytes : Sized + Copy {
         }
     }
 
+    ///
+    /// Returns the size in bytes of `Self`.
+    ///
     fn size() -> usize {
         mem::size_of::<Self>()
+    }
+
+    ///
+    /// Returns a `*const u8` pointer to the beginning of the data.
+    ///
+    #[allow(trivial_casts)] // the cast is actually required
+    fn as_u8_ptr(&self) -> *const u8 {
+        self as *const Self as *const _
+    }
+
+    ///
+    /// Returns a `*mut u8` pointer to the beginning of the data.
+    ///
+    #[allow(trivial_casts)] // the cast is actually required
+    fn as_mut_u8_ptr(&mut self) -> *mut u8 {
+        self as *mut Self as *mut _
     }
 }
 

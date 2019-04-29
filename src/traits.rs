@@ -25,22 +25,14 @@ macro_rules! impls {
     )*};
 
     (prim $ty:ty) => {
-        #[allow(trivial_casts)]
-        unsafe impl Bytes for $ty {
-            fn as_u8_ptr(&self) -> *const u8 { self as *const Self as *const _ }
-            fn as_mut_u8_ptr(&mut self) -> *mut u8 { self as *mut Self as *mut _ }
-        }
+        unsafe impl Bytes for $ty {}
 
         unsafe impl Randomizable for $ty {}
     };
 
     (array $ty:ty; ($($n:tt)*)) => {$(
         #[allow(trivial_casts)]
-        unsafe impl Bytes for [$ty; $n] {
-            fn as_u8_ptr(&self) -> *const u8 { self.as_ptr() as *const _ }
-            fn as_mut_u8_ptr(&mut self) -> *mut u8 { self.as_mut_ptr() as *mut _ }
-        }
-
+        unsafe impl Bytes for [$ty; $n] {}
         unsafe impl Randomizable for [$ty; $n] {}
     )*};
 }
