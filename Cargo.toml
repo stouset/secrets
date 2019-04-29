@@ -16,5 +16,8 @@ readme        = "README.md"
 [dependencies]
 libc = '0'
 
+[build-dependencies]
+pkg-config = '0.3'
+
 [dev-dependencies]
 libsodium-sys = '0'

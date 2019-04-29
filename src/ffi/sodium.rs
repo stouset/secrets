@@ -10,7 +10,6 @@ use libc::{self, c_int, c_void, size_t};
 static     INIT:        Once = ONCE_INIT;
 static mut INITIALIZED: bool = false;
 
-#[link(name = "sodium")]
 extern "C" {
     fn sodium_init() -> c_int;
 
