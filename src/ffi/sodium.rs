@@ -16,12 +16,12 @@ extern "C" {
     fn sodium_allocarray(count: size_t, size: size_t) -> *mut c_void;
     fn sodium_free(ptr: *mut c_void);
 
-    fn sodium_mlock(ptr: *const c_void, len: size_t) -> c_int;
-    fn sodium_munlock(ptr: *const c_void, len: size_t) -> c_int;
+    fn sodium_mlock(ptr: *mut c_void, len: size_t) -> c_int;
+    fn sodium_munlock(ptr: *mut c_void, len: size_t) -> c_int;
 
-    fn sodium_mprotect_noaccess(ptr: *const c_void) -> c_int;
-    fn sodium_mprotect_readonly(ptr: *const c_void) -> c_int;
-    fn sodium_mprotect_readwrite(ptr: *const c_void) -> c_int;
+    fn sodium_mprotect_noaccess(ptr: *mut c_void) -> c_int;
+    fn sodium_mprotect_readonly(ptr: *mut c_void) -> c_int;
+    fn sodium_mprotect_readwrite(ptr: *mut c_void) -> c_int;
 
     fn sodium_memcmp(l: *const c_void, r: *const c_void, len: size_t) -> c_int;
     fn sodium_memzero(ptr: *mut c_void, len: size_t);
@@ -65,23 +65,23 @@ pub(crate) unsafe fn free<T>(ptr: *mut T) {
 }
 
 pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
-    sodium_mlock(ptr as *const _, mem::size_of::<T>()) == 0
+    sodium_mlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
 pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
-    sodium_munlock(ptr as *const _, mem::size_of::<T>()) == 0
+    sodium_munlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
 pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
-    sodium_mprotect_noaccess(ptr as *const _) == 0
+    sodium_mprotect_noaccess(ptr as *mut _) == 0
 }
 
 pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
-    sodium_mprotect_readonly(ptr as *const _) == 0
+    sodium_mprotect_readonly(ptr as *mut _) == 0
 }
 
 pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
-    sodium_mprotect_readwrite(ptr as *const _) == 0
+    sodium_mprotect_readwrite(ptr as *mut _) == 0
 }
 
 /// Compares `l` and `r` for equality in constant time, preventing side-channel
@@ -127,4 +127,16 @@ pub(crate) fn memzero(bytes: &mut [u8]) {
 /// Fills `ptr` with `count` random bytes.
 pub(crate) fn memrandom(bytes: &mut [u8]) {
     unsafe { randombytes_buf(bytes.as_mut_ptr() as *mut _, bytes.len()) }
+}
+
+#[cfg(test)]
+mod test {
+    #![allow(warnings)]
+
+    use super::*;
+
+    include!(concat!(env!("OUT_DIR"), "/ctest_sodium.rs"));
+
+    #[test]
+    fn ctest() { main(); }
 }
