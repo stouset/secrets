@@ -21,7 +21,8 @@ const GARBAGE_VALUE: u8 = 0xdb;
 ///
 /// A marker trait for types whose size is known at compile time and can
 /// be treated as raw buckets of bytes. Any type that implements `Bytes`
-/// must be able to assume any arbitrary value.
+/// must not exhibit undefined behavior when its underlying bits are set
+/// to any arbitrary bit pattern.
 ///
 pub unsafe trait Bytes : Sized + Copy {
     ///
@@ -69,15 +70,39 @@ pub unsafe trait Bytes : Sized + Copy {
     }
 }
 
+///
+/// Marker trait for types who are intrepretable as a series of
+/// contiguous bytes, where the exact size may not be known at
+/// compile-time. Any type that implements [`AsContiguousBytes`] must
+/// not exhibit undefined behavior when its underlying bits are set to
+/// any arbitrary bit pattern.
+///
 pub unsafe trait AsContiguousBytes {
+    ///
+    /// Returns the size in bytes of `Self`.
+    ///
     fn size(&self) -> usize;
+
+    ///
+    /// Returns a `*const u8` pointer to the beginning of the data.
+    ///
     fn as_u8_ptr(&self) -> *const u8;
+
+    ///
+    /// Returns a `*mut u8` pointer to the beginning of the data.
+    ///
     fn as_mut_u8_ptr(&mut self) -> *mut u8;
 
+    ///
+    /// Returns a byte slice to the underlying data.
+    ///
     fn as_bytes(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(self.as_u8_ptr(), self.size()) }
     }
 
+    ///
+    /// Returns a mutable byte slice to the underlying data.
+    ///
     fn as_mut_bytes(&mut self) -> &mut [u8] {
         unsafe { slice::from_raw_parts_mut(self.as_mut_u8_ptr(), self.size()) }
     }
