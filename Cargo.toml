@@ -1,17 +1,18 @@
 [package]
 name    = "secrets"
 version = "0.12.0"
-license = "MIT OR Apache-2.0"
+edition = "2018"
 
 authors     = ["Stephen Touset <stephen@touset.org>"]
 description = "Protected-access memory for cryptographic secrets"
 
-edition = "2018"
-
+license       = "MIT OR Apache-2.0"
 homepage      = "https://github.com/stouset/secrets"
 repository    = "https://github.com/stouset/secrets"
 documentation = "https://stouset.github.io/secrets"
 readme        = "README.md"
+
+keywords = [ "crypto", "cryptography", "allocator" ]
 
 [dependencies]
 libc = '0'
