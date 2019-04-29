@@ -84,11 +84,14 @@ pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
     sodium_mprotect_readwrite(ptr as *mut _) == 0
 }
 
-/// Compares `l` and `r` for equality in constant time, preventing side-channel
-/// attacks when comparing equality of secret data. `l` and `r` *must* be of the
-/// same length.
+///
+/// Compares `l` and `r` for equality in constant time, preventing
+/// side-channel attacks when comparing equality of secret data.
+///
 pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
-    debug_assert_eq!(l.len(), r.len());
+    if l.len() != r.len() {
+        return false
+    }
 
     unsafe {
         sodium_memcmp(
@@ -99,8 +102,11 @@ pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
     }
 }
 
-/// Copies bytes from `src` to `dst` before zeroing the bytes in `src`. `dst`
-/// *must* be at least as long as `src` and *must not* overlap `src`.
+///
+/// Copies bytes from `src` to `dst` before zeroing the bytes in `src`.
+/// `dst` *must* be at least as long as `src` and *must not* overlap
+/// `src`.
+///
 pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
     debug_assert!(src.len() <= dst.len());
 
@@ -119,12 +125,16 @@ pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
     memzero(src);
 }
 
+///
 /// Fills `bytes` with zeroes.
+///
 pub(crate) fn memzero(bytes: &mut [u8]) {
     unsafe { sodium_memzero(bytes.as_mut_ptr() as *mut _, bytes.len()) }
 }
 
-/// Fills `ptr` with `count` random bytes.
+///
+/// Fills `bytes` with random bytes.
+///
 pub(crate) fn memrandom(bytes: &mut [u8]) {
     unsafe { randombytes_buf(bytes.as_mut_ptr() as *mut _, bytes.len()) }
 }
@@ -139,4 +149,24 @@ mod test {
 
     #[test]
     fn ctest() { main(); }
+
+    #[test]
+    fn memcmp_compares_equality() {
+        let a = [0xfd, 0xa1, 0x92, 0x4b];
+        let b = a;
+
+        assert!(memcmp(&a, &b));
+    }
+
+    #[test]
+    fn memcmp_compares_inequality_for_different_lengths() {
+        let a = [0xb8, 0xa4, 0x06, 0xd1];
+        let b = [0xb8, 0xa4, 0x06];
+        let c = [0xb8, 0xa4, 0x06, 0xd1, 0x3a];
+
+        assert!(memcmp(&a, &b) == false);
+        assert!(memcmp(&b, &a) == false);
+        assert!(memcmp(&a, &c) == false);
+        assert!(memcmp(&c, &a) == false);
+    }
 }
