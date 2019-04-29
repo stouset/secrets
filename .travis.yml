@@ -1,35 +1,71 @@
+os:
+  - linux
+  - osx
+
 language: rust
-sudo:     false
 
 rust:
-  - nightly
-  - beta
   - stable
+  - beta
+  - nightly
 
-matrix:
-  allow_failures:
-    - rust: nightly
+  # the earliest supported stable release; we depend upon the uniform
+  # module paths feature that landed in this version
+  - 1.32.0
+
+dist: xenial
 
 addons:
   apt:
-    sources:
-      - debian-sid
     packages:
       - libsodium-dev
-
-before_script: |
-  [ $TRAVIS_RUST_VERSION = "nightly" ] && export TEST_FLAGS="--features clippy" || true
-
-script:
-  - cargo build --verbose
-  - cargo test  --verbose $TEST_FLAGS
-  - cargo bench --verbose
-
-after_success: |
-  [ $TRAVIS_BRANCH       = master ] &&
-  [ $TRAVIS_PULL_REQUEST = false ]  &&
-  script/update-docs $TRAVIS_REPO_SLUG
+  homebrew:
+    packages:
+      - libsodium
+      - pkg-config
 
 env:
   global:
-    secure: UlGYL6Vcv6XpsId97Urb2xnitfYWa5Ar5gHFzS52yySnSKbQ5ViTAJ4PcIrXek2TInYTMn8Hj3teGsA+SQO2cyzwjNFaDr3JzVWbiWt5DQMVv6qeeZAOaKrBEAZPmYj/enP64yJNseV4SKAjL14ROjErijYpXUSfGMEyRfYH3zI=
+    - CARGO_TERM_VERBOSE=true
+    - RUSTFLAGS="-A unknown-lints -D warnings"
+
+before_script:
+  - rustup component add clippy
+
+script:
+  - cargo build
+  - cargo test
+  - >
+    if [[ "${TRAVIS_RUST_VERSION}" = 'beta' ]]; then
+      cargo clippy
+    fi
+
+cache: cargo
+
+matrix:
+  fast_finish: true
+
+  allow_failures:
+    - rust: nightly
+
+  # TODO: generate and upload docs
+  include:
+    - name: coverage
+      rust: stable
+      os: linux
+      dist: xenial
+      sudo: required
+
+      addons:
+        apt:
+          packages:
+            - libcurl4-openssl-dev
+            - libdw-dev
+            - libelf-dev
+            - libsodium-dev
+            - binutils-dev
+            - cmake
+
+      script:
+        - cargo install cargo-travis --force --debug
+        - cargo coveralls
