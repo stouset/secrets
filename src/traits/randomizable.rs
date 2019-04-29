@@ -19,4 +19,4 @@ pub unsafe trait Randomizable : AsContiguousBytes {
     }
 }
 
-unsafe impl<T: Bytes + Randomizable> Randomizable for [T] {}
+unsafe impl<T: AsContiguousBytes + ?Sized> Randomizable for T {}

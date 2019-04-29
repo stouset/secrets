@@ -26,14 +26,11 @@ macro_rules! impls {
 
     (prim $ty:ty) => {
         unsafe impl Bytes for $ty {}
-
-        unsafe impl Randomizable for $ty {}
     };
 
     (array $ty:ty; ($($n:tt)*)) => {$(
         #[allow(trivial_casts)]
         unsafe impl Bytes for [$ty; $n] {}
-        unsafe impl Randomizable for [$ty; $n] {}
     )*};
 }
 
