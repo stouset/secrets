@@ -546,7 +546,7 @@ mod tests_sigsegv {
 
             let _ = sodium::memcmp(
                 val.as_bytes(),
-                val.as_bytes()
+                val.as_bytes(),
             );
         })
     }
