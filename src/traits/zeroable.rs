@@ -41,5 +41,4 @@ pub unsafe trait Zeroable : AsContiguousBytes {
 // Anything that can have its underlying storage randomized can
 // inherently have its underlying storage zeroed out (since zero is a
 // potentially random value).
-unsafe impl<T: Randomizable> Zeroable for T {}
-unsafe impl<T: Bytes + Zeroable> Zeroable for [T] {}
+unsafe impl<T: AsContiguousBytes + ?Sized> Zeroable for T {}
