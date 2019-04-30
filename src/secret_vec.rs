@@ -372,6 +372,8 @@ impl<T: Bytes> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
     }
 }
 
+// LCOV_EXCL_START
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -477,3 +479,5 @@ mod test {
         assert_ne!(secret_1, secret_2);
     }
 }
+
+// LCOV_EXCL_STOP

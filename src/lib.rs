@@ -1,3 +1,5 @@
+// LCOV_EXCL_LINE
+
 //! Protected-access memory for cryptographic secrets.
 //!
 //! Provides a convenient way to allocate and access memory for

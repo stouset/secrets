@@ -62,10 +62,15 @@ matrix:
             - libcurl4-openssl-dev
             - libdw-dev
             - libelf-dev
+            - libiberty-dev
             - libsodium-dev
             - binutils-dev
             - cmake
 
+      before_script:
+        - cargo install cargo-update || echo "cargo-update already installed"
+        - cargo install cargo-travis || echo "cargo-travis already installed"
+        - cargo install-update -a
+
       script:
-        - cargo install cargo-travis --force --debug
-        - cargo coveralls
+        - cargo coveralls --exclude-pattern "_ctest.rs,_ctest.c"
