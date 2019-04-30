@@ -283,6 +283,8 @@ fn mprotect<T>(ptr: *const T, prot: Prot) {
     }
 }
 
+// LCOV_EXCL_START
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -601,3 +603,5 @@ mod tests_debug_assertions {
         let _ = Box::<u8>::zero(1).unlock_mut();
     }
 }
+
+// LCOV_EXCL_STOP

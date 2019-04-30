@@ -139,13 +139,15 @@ pub(crate) fn memrandom(bytes: &mut [u8]) {
     unsafe { randombytes_buf(bytes.as_mut_ptr() as *mut _, bytes.len()) }
 }
 
+// LCOV_EXCL_START
+
 #[cfg(test)]
 mod test {
     #![allow(warnings)]
 
     use super::*;
 
-    include!(concat!(env!("OUT_DIR"), "/ctest_sodium.rs"));
+    include!(concat!(env!("OUT_DIR"), "/sodium_ctest.rs"));
 
     #[test]
     fn ctest() { main(); }
@@ -170,3 +172,5 @@ mod test {
         assert!(memcmp(&c, &a) == false);
     }
 }
+
+// LCOV_EXCL_STOP

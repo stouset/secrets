@@ -4,7 +4,7 @@ use pkg_config::{Config as PkgConfig, Library, Error};
 fn main() {
     TestGenerator::new()
         .header("sodium.h")
-        .generate("src/ffi/sodium.rs", "ctest_sodium.rs");
+        .generate("src/ffi/sodium.rs", "sodium_ctest.rs");
 
     if link("libsodium", "1.0.8").is_none() {
         // if pkg-config is disabled or failed to run, try and link

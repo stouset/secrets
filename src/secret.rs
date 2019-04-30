@@ -181,6 +181,8 @@ impl<T: ConstantEq> PartialEq for RefMut<'_, T> {
     }
 }
 
+// LCOV_EXCL_START
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -276,3 +278,5 @@ mod tests {
         Secret::<u16>::zero(|s| { let _ = s.clone(); });
     }
 }
+
+// LCOV_EXCL_STOP
