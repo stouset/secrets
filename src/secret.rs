@@ -261,7 +261,7 @@ mod tests {
 
     #[test]
     fn it_preserves_secrecy() {
-        Secret::<[u64; 2]>::random(|s| {
+        Secret::<[u64; 2]>::zero(|s| {
             assert_eq!(
                 format!("{{ {} bytes redacted }}", 16),
                 format!("{:?}", s),

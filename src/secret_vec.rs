@@ -413,6 +413,38 @@ mod test {
     }
 
     #[test]
+    fn it_provides_its_length() {
+        let secret = SecretVec::<[u64; 4]>::zero(32);
+        assert_eq!(secret.len(), 32);
+    }
+
+    #[test]
+    fn it_provides_its_size() {
+        let secret = SecretVec::<[u64; 4]>::zero(32);
+        assert_eq!(secret.size(), 1024);
+    }
+
+    #[test]
+    fn it_preserves_secrecy() {
+        let mut secret = SecretVec::<u64>::random(32);
+
+        assert_eq!(
+            format!("{{ {} bytes redacted }}", 256),
+            format!("{:?}", secret),
+        );
+
+        assert_eq!(
+            format!("{{ {} bytes redacted }}", 256),
+            format!("{:?}", secret.borrow()),
+        );
+
+        assert_eq!(
+            format!("{{ {} bytes redacted }}", 256),
+            format!("{:?}", secret.borrow_mut()),
+        );
+    }
+
+    #[test]
     fn it_moves_safely() {
         let secret_1 = SecretVec::<u8>::zero(1);
         let secret_2 = secret_1;
