@@ -58,13 +58,13 @@ matrix:
       addons:
         apt:
           packages:
-            - libsodium-dev
             - libcurl4-openssl-dev
-            - libelf-dev
             - libdw-dev
+            - libelf-dev
+            - libsodium-dev
             - binutils-dev
             - cmake
 
       script:
-        - cargo install cargo-travis --debug || echo "cargo-travis has been already installed"
+        - cargo install cargo-travis --force --debug
         - cargo coveralls
