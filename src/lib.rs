@@ -77,7 +77,7 @@
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::float_cmp_const))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::indexing_slicing))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::mem_forget))]
-// #![cfg_attr(feature = "cargo-clippy", warn(clippy::missing_docs_in_private_items))]
+#![cfg_attr(feature = "cargo-clippy", warn(clippy::missing_docs_in_private_items))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::print_stdout))]
