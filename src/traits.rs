@@ -1,110 +1,53 @@
-//! A collection of traits useful for bytewise manipulation of data.
+//!
+//! Marker traits to allow types to be contained as secrets.
+//!
 
 #![allow(unsafe_code)]
 
-use sodium;
+// `clippy` currently warns when trait functions could be `const fn`s, but this
+// is not actually allowed by the language
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::missing_const_for_fn))]
 
-/// Types that are fixed-size byte arrays.
-pub trait ByteArray {
-    /// Converts the array to an immutable slice of bytes.
-    fn as_slice(&self) -> &[u8];
+mod bytes;
+mod constant_eq;
+mod randomizable;
+mod zeroable;
 
-    /// Converts the array to a mutable slice of bytes.
-    fn as_mut_slice(&mut self) -> &mut [u8];
-}
-
-/// Types that are considered equal if and only if their backing memory is equal.
-//
-// This should have a trait bound on Eq, as bytewise equality is an even stronger requirement than
-// being an equivalence relation, and we want to have this logic occur for the `==` operator.
-// However, Rust doesn't impl Eq on arrays with more than 32 entries, and we implement traits on
-// everything up to 64 entries.
-pub trait BytewiseEq : Sized {
-    /// Compares `self` and `other` for equality by comparing the contents of their memory
-    /// directly in constant time.
-    fn eq(&self, other: &Self) -> bool {
-        unsafe { sodium::memcmp(self, other, 1) }
-    }
-}
-
-/// Types whose contents can be completely represented by and manipulated through an underlying
-/// mutable reference to another type `T`
-pub trait IsMutRef<T> {
-    /// Cheaply converts `self` to a mutable reference to `T`, through which the original object
-    /// can be safely mutated without loss of consistency.
-    fn as_mut_ref(&mut self) -> &mut T;
-}
-
-/// Types that can be safely initialized by setting their memory to random values.
-pub trait Randomizable : Sized {
-    /// Randomizes the contents of self.
-    fn randomize(&mut self) {
-        unsafe { sodium::random(self, 1) };
-    }
-}
-
-/// Types that can be safely initialized by setting their memory to all zeroes.
-pub trait Zeroable : Sized {
-    /// Ensures the contents of self are zeroed out. This is guaranteed not to be optimized away,
-    /// even if the object is never later used.
-    fn zero(&mut self) {
-        unsafe { sodium::memzero(self, 1) }
-    }
-}
-
-impl<T> IsMutRef<T> for T {
-    fn as_mut_ref(&mut self) -> &mut T {
-        self
-    }
-}
+pub use bytes::{Bytes, AsContiguousBytes};
+pub use constant_eq::ConstantEq;
+pub use randomizable::Randomizable;
+pub use zeroable::Zeroable;
 
 macro_rules! impls {
-    (array $($tt:tt)*) => { impls!{ [] $(($tt))* } };
-    (tuple $($tt:tt)*) => { impls!{ () void $($tt)* } };
-    (prim $($prim:ident)*) => {$(
-        impl BytewiseEq for $prim {}
-        impl Randomizable for $prim {}
-        impl Zeroable for $prim {}
+    ($($ty:ty),* ; $ns:tt) => {$(
+        impls!{prim  $ty}
+        impls!{array $ty; $ns}
     )*};
 
-    ([] $(($n:expr))*) => {$(
-        impl<T: BytewiseEq> BytewiseEq for [T; $n] {}
-        impl<T: Randomizable> Randomizable for [T; $n] {}
-        impl<T: Zeroable> Zeroable for [T; $n] {}
-
-        impl ByteArray for [u8; $n] {
-            fn as_slice(&self) -> &[u8] { self }
-            fn as_mut_slice(&mut self) -> &mut [u8] { self }
-        }
-    )*};
-
-    (()) => { };
-    (() $head:ident $($tail:ident)*) => {
-        impl<$($tail: BytewiseEq),*> BytewiseEq for ($($tail,)*) {}
-        impl<$($tail: Randomizable),*> Randomizable for ($($tail,)*) {}
-        impl<$($tail: Zeroable),*> Zeroable for ($($tail,)*) {}
-        impls!{ () $($tail)* }
+    (prim $ty:ty) => {
+        unsafe impl Bytes for $ty {}
     };
+
+    (array $ty:ty; ($($n:tt)*)) => {$(
+        #[allow(trivial_casts)]
+        unsafe impl Bytes for [$ty; $n] {}
+    )*};
 }
 
-impls!{prim
-    u8 u16 u32 u64
-    i8 i16 i32 i64
-}
+impls!{
+    u8, u16, u32, u64, u128; (
 
-impls!{array
-    64 63 62 61 60 59 58 57
-    56 55 54 53 52 51 50 49
-    48 47 46 45 44 43 42 41
-    40 39 38 37 36 35 34 33
-    32 31 30 29 28 27 26 25
-    24 23 22 21 20 19 18 17
-    16 15 14 13 12 11 10  9
-     8  7  6  5  4  3  2  1
-     0
-}
+     0  1  2  3  4  5  6  7  8  9
+    10 11 12 13 14 15 16 17 18 19
+    20 21 22 23 24 25 26 27 28 29
+    30 31 32 33 34 35 36 37 38 39
+    40 41 42 43 44 45 46 47 48 49
+    50 51 52 53 54 55 56 57 58 59
+    60 61 62 63 64
 
-impls!{tuple
-    A B C D E F
-    G H I J K L
-}
+    // 521-bit (8 * 65.25) keys are a thing (ECDH / ECDSA)
+    66
+
+    // "million-bit keys ought to be enough for anybody"
+    128 256 384 512 1024 2048 4096 8192
+)}

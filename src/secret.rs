@@ -1,232 +1,282 @@
-use traits::{BytewiseEq, Randomizable, Zeroable};
-use sec::Sec;
+#![allow(missing_debug_implementations)]
+#![allow(unsafe_code)]
 
-use std::borrow::{Borrow, BorrowMut};
+use crate::ffi::sodium;
+use crate::traits::*;
+
+use std::borrow::BorrowMut;
+use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
-/// A type that wraps allocated memory suitable for cryptographic
-/// secrets.
 ///
-/// When initialized with existing data, the memory of the existing
-/// data is zeroed out. That said, this library cannot guarantee that
-/// that memory has not been copied elsewhere, swapped to disk, or
-/// otherwise handled insecurely so rely on this with caution.
+/// A type for protecting secrets allocated on the stack.
 ///
-/// # Examples
+/// Stack-allocated secrets have distinct security needs from
+/// heap-allocated secrets, and should be preferred when possible. They
+/// provide the following guarantees:
 ///
-/// Generating cryptographic keys:
+/// * [`mlock(2)`][mlock] is called on the underlying memory
+/// * [`munlock(2)`][mlock] is called on the underlying memory when no longer in use
+/// * the underlying memory is zeroed out when no longer in use
+/// * they are borrowed for their entire lifespan, so cannot be moved
+/// * they are best-effort compared in constant time
+/// * they are best-effort prevented from being printed by [`Debug`]
+/// * they are best-effort prevented from being [`Clone`]d
 ///
-/// ```
-/// use secrets::Secret;
+/// To fulfill these guarantees, [`Secret`]s are constructed in an
+/// atypical pattern. Rather than having [`new`](Secret::new) return a
+/// newly-created instance, [`new`](Secret::new) accepts a callback
+/// argument that is provided with a mutably borrowed wrapper around the
+/// data in question. This wrapper [`Deref`]s into the desired type,
+/// with replacement implementations of [`Debug`], [`PartialEq`], and
+/// [`Eq`] to prevent accidental misuse.
 ///
-/// let secret   = Secret::<[u8; 32]>::random();
-/// let secret_r = secret.borrow();
+/// Users *must* take care when dereferencing secrets as this will
+/// provide direct access to the underlying type. If the bare type
+/// implements traits like [`Clone`], [`Debug`], and [`PartialEq`],
+/// those methods can be called directly and will not benefit from the
+/// protections provided by this wrapper.
 ///
-/// println!("{:?}", secret_r);
-/// ```
+/// Users *must* also take care to avoid unintentionally invoking
+/// [`Copy`] on the underlying data, as doing so will result in
+/// secret data being copied out of the [`Secret`], thus losing the
+/// protections provided by this library. Be careful not to invoke
+/// methods that take ownership of `self` or functions that move
+/// parameters with secret data, since doing so will implicitly create
+/// copies.
 ///
-/// Secrets from existing mutable data:
+/// # Example: generate a cryptographically-random 128-bit [`Secret`]
 ///
-/// ```
-/// use secrets::Secret;
-///
-/// // static data for the test; static data *can't* be wiped, but
-/// // copies of it will be
-/// let reference : &'static [u8; 4] = b"\xfa\x12\x00\xd9";
-/// let zeroes    : &'static [u8; 4] = b"\x00\x00\x00\x00";
-///
-/// let mut bytes    = *reference;
-/// let     secret   = Secret::from(&mut bytes);
-/// let     secret_r = secret.borrow();
-///
-/// assert_eq!(*reference, *secret_r);
-/// assert_eq!(*zeroes,    bytes);
-/// ```
-///
-/// Accessing array contents through pointers:
-///
-/// ```
-/// use secrets::Secret;
-/// use std::ptr;
-///
-/// let mut secret   = unsafe { Secret::<[u8; 4]>::uninitialized() };
-/// let mut secret_w = secret.borrow_mut();
-///
-/// unsafe {
-///     ptr::write_bytes(
-///         secret_w.as_mut_ptr(),
-///         0xd0,
-///         secret_w.len(),
-///     );
-/// }
-///
-/// assert_eq!(*b"\xd0\xd0\xd0\xd0", *secret_w);
-/// ```
-///
-/// Wrapping custom struct types:
+/// Initialize a [`Secret`] with cryptographically random data:
 ///
 /// ```
-/// use secrets::Secret;
-/// use secrets::traits::Zeroable;
-///
-/// #[derive(Debug)]
-/// #[derive(PartialEq)]
-/// struct SensitiveData { a: u64, b: u8 };
-///
-/// impl Zeroable for SensitiveData {};
-/// impl Default  for SensitiveData {
-///     fn default() -> Self { SensitiveData { a: 100, b: 255 } }
-/// }
-///
-/// let zeroed  = Secret::<SensitiveData>::zero();
-/// let default = Secret::<SensitiveData>::default();
-///
-/// assert_eq!(SensitiveData { a: 0, b: 0 }, *zeroed .borrow());
-/// assert_eq!(SensitiveData::default(),     *default.borrow());
+/// # use secrets::Secret;
+/// Secret::<[u8; 16]>::random(|s| {
+///     // use `s` as if it were a `[u8; 16]`
+/// });
 /// ```
 ///
-#[derive(Debug)]
-pub struct Secret<T> {
-    sec: Sec<T>,
+/// # Example: move mutable data into a [`Secret`]
+///
+/// Existing data can be moved into a [`Secret`]. When doing so, we make
+/// a best-effort attempt to zero out the data in the original location.
+/// Any prior copies will be unaffected, so please exercise as much
+/// caution as possible when handling data before it can be protected.
+///
+/// ```
+/// # use secrets::Secret;
+/// let mut value = [1u8, 2, 3, 4];
+///
+/// // the contents of `value` will be copied into the Secret before
+/// // being zeroed out
+/// Secret::from(&mut value, |s| {
+///     assert_eq!(*s, [1, 2, 3, 4]);
+/// });
+///
+/// // the contents of `value` have been zeroed
+/// assert_eq!(value, [0, 0, 0, 0]);
+/// ```
+///
+/// [mlock]: http://man7.org/linux/man-pages/man2/mlock.2.html
+///
+pub struct Secret<T: Bytes> {
+    data: T,
 }
 
-impl<T: BytewiseEq> PartialEq for Secret<T> {
-    fn eq(&self, s: &Self) -> bool {
-        self.sec == s.sec
-    }
+#[derive(Eq)]
+pub struct RefMut<'a, T: ConstantEq> {
+    data: &'a mut T,
 }
 
-impl<T: BytewiseEq> Eq for Secret<T> {}
-
-impl<'a, T: Zeroable + Copy> From<&'a mut T> for Secret<T> {
-    /// Moves the contents of `data` into a `Secret` and zeroes out
-    /// the contents of `data`.
-    fn from(data: &mut T) -> Self {
-        Secret { sec: Sec::from(data) }
-    }
-}
-
-impl<T: Default> Default for Secret<T> {
-    /// Creates a new `Secret` with the default value for `T`.
-    fn default() -> Self {
-        Secret { sec: Sec::default(1) }
-    }
-}
-
-impl<T: Randomizable> Secret<T> {
-    /// Creates a new `Secret` capable of storing an object of type `T`
-    /// and initialized with a cryptographically random value.
-    pub fn random() -> Self {
-        Secret { sec: Sec::random(1) }
-    }
-}
-
-impl<T: Zeroable> Secret<T> {
-    /// Creates a new `Secret` capable of storing an object of type `T`
-    /// and initialized to all zeroes.
-    pub fn zero() -> Self {
-        Secret { sec: Sec::zero(1) }
-    }
-}
-
-impl<T> Secret<T> {
-    /// Creates a new `Secret` capable of storing an object of type `T`.
+impl<T: Bytes> Secret<T> {
     ///
-    /// By default, the allocated region is filled with 0xd0 bytes in
-    /// order to help catch bugs due to uninitialized data. This
-    /// method is marked as unsafe because filling an arbitrary type
-    /// with garbage data is undefined behavior.
-    #[allow(unsafe_code)]
-    pub unsafe fn uninitialized() -> Self {
-        Secret { sec: Sec::uninitialized(1) }
-    }
-
-    /// Creates and initializes a new `Secret` capable of storing an
-    /// object of type `T`.
+    /// Creates a new [`Secret`] and invokes the provided callback with
+    /// a wrapper to the protected memory.
     ///
-    /// Initialization is handled by a closure passed to method, which
-    /// accepts a reference to the object to be initialized. The data
-    /// in this reference will be uninitialized until written to, so
-    /// care must be taken to initialize its memory without reading
-    /// from it to avoid undefined behavior.
-    #[allow(unsafe_code)]
-    pub unsafe fn new<F>(init: F) -> Self
-        where F: FnOnce(&mut T) {
-        Secret { sec: Sec::<T>::new(1, |sec| init(sec.borrow_mut())) }
-    }
+    #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
+    pub fn new<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
+        let mut secret = Self {
+            data: T::uninitialized()
+        };
 
-    /// Returns the size in bytes of the data contained in the `Secret`
-    pub fn size(&self) -> usize {
-        self.sec.size()
-    }
+        if unsafe { !sodium::mlock(&secret.data) } {
+            panic!("secrets: unable to mlock memory for a Secret")
+        };
 
-    /// Returns a `Ref<T>` from which elements in the `Secret` can be
-    /// safely read from.
-    pub fn borrow(&self) -> Ref<T> {
-        Ref::new(&self.sec)
-    }
-
-    /// Returns a `Ref<T>` from which elements in the `Secret` can be
-    /// safely read from or written to.
-    pub fn borrow_mut(&mut self) -> RefMut<T> {
-        RefMut::new(&mut self.sec)
+        f(RefMut::new(&mut secret.data));
     }
 }
 
-/// Wraps an immutably borrowed reference to the contents of a `Secret`.
-#[derive(Debug)]
-pub struct Ref<'a, T: 'a> {
-    sec: &'a Sec<T>,
+impl<T: Bytes + Zeroable> Secret<T> {
+    ///
+    /// Creates a new [`Secret`] filled with zeroed bytes and invokes the
+    /// callback with a wrapper to the protected memory.
+    ///
+    pub fn zero<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
+        Self::new(|mut s| { s.zero(); f(s) })
+    }
+
+    ///
+    /// Creates a new [`Secret`] from existing, unprotected data, and
+    /// immediately zeroes out the memory of the data being moved in.
+    /// Invokes the callback with a wrapper to the protected memory.
+    ///
+    pub fn from<F>(v: &mut T, f: F) where F: FnOnce(RefMut<'_, T>) {
+        Self::new(|mut s| { unsafe { v.transfer(s.borrow_mut()) }; f(s) })
+    }
 }
 
-/// Wraps an mutably borrowed reference to the contents of a `Secret`.
-#[derive(Debug)]
-pub struct RefMut<'a, T: 'a> {
-    sec: &'a mut Sec<T>,
+impl<T: Bytes + Randomizable> Secret<T> {
+    ///
+    /// Creates a new [`Secret`] filled with random bytes and invokes the
+    /// callback with a wrapper to the protected memory.
+    ///
+    pub fn random<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
+        Self::new(|mut s| { s.randomize(); f(s) })
+    }
 }
 
-impl<'a, T> Drop for Ref<'a, T> {
+impl<T: Bytes> Drop for Secret<T> {
     fn drop(&mut self) {
-        self.sec.lock();
+        if unsafe { !sodium::munlock(&self.data) } {
+            panic!("secrets: unable to munlock memory for a Secret")
+        };
     }
 }
 
-impl<'a, T> Drop for RefMut<'a, T> {
-    fn drop(&mut self) {
-        self.sec.lock();
+impl<'a, T: ConstantEq> RefMut<'a, T> {
+    pub(crate) fn new(data: &'a mut T) -> Self {
+        Self { data }
     }
 }
 
-impl<'a, T> Deref for Ref<'a, T> {
+impl<T: Bytes + Clone> Clone for RefMut<'_, T> {
+    fn clone(&self) -> Self {
+        panic!("secrets: a Secret may not be cloned")
+    }
+}
+
+impl<T: ConstantEq> Debug for RefMut<'_, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{{ {} bytes redacted }}", self.data.size())
+    }
+}
+
+impl<T: ConstantEq> Deref for RefMut<'_, T> {
     type Target = T;
+
     fn deref(&self) -> &Self::Target {
-        (*self.sec).borrow()
+        self.data
     }
 }
-
-impl<'a, T> Deref for RefMut<'a, T> {
-    type Target = T;
-    fn deref(&self) -> &Self::Target {
-        (*self.sec).borrow()
-    }
-}
-
-impl<'a, T> DerefMut for RefMut<'a, T> {
+impl<T: ConstantEq> DerefMut for RefMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        (*self.sec).borrow_mut()
+        self.data
     }
 }
 
-impl<'a, T> Ref<'a, T> {
-    fn new(sec: &Sec<T>) -> Ref<T> {
-        sec.read();
-        Ref { sec: sec }
+impl<T: ConstantEq> PartialEq for RefMut<'_, T> {
+    fn eq(&self, rhs: &Self) -> bool {
+        self.data.constant_eq(rhs.data)
     }
 }
 
-impl<'a, T> RefMut<'a, T> {
-    fn new(sec: &mut Sec<T>) -> RefMut<T> {
-        sec.write();
-        RefMut { sec: sec }
+// LCOV_EXCL_START
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ptr;
+
+    #[test]
+    fn it_defaults_to_garbage_data() {
+        Secret::<u16>::new(|s| assert_eq!(*s, 0xdbdb));
+    }
+
+    #[test]
+    fn it_zeroes_when_leaving_scope() {
+        unsafe {
+            let mut ptr: *const _ = ptr::null();
+
+            Secret::<u128>::new(|mut s| {
+                // Funnily enough, this test also fails (in release
+                // mode) if we set `s` to since the Rust compiler
+                // rightly determines that this entire block does
+                // nothing and can be optimized away.
+                //
+                // So we use `sodium::memrandom` which `rustc` doesn't
+                // get to perform analysis on to force the compiler to
+                // not optimize this whole thing away.
+                sodium::memrandom(s.as_mut_bytes());
+
+                // Assign to a pointer that outlives this, which is
+                // totally undefined behavior but there's no real other
+                // way to test that this works.
+                ptr = &*s;
+            });
+
+            // This is extremely brittle. It works with integers because
+            // they compare equality directly but it doesn't work with
+            // arrays since they compare using a function call which
+            // clobbers the value of `ptr` since it's pointing to the
+            // stack.
+            //
+            // Still, a test here is better than no test here. It would
+            // just be nice if we could also test with arrays, but the
+            // logic should work regardless. This was spot-checked in a
+            // debugger as well.
+            assert_eq!(*ptr, 0);
+        }
+    }
+
+    #[test]
+    fn it_initializes_from_values() {
+        Secret::from(&mut 5, |s| assert_eq!(*s, 5_u8));
+    }
+
+    #[test]
+    fn it_zeroes_values_when_initializing_from() {
+        let mut value = 5_u8;
+
+        Secret::from(&mut value, |_| { });
+
+        assert_eq!(value, 0);
+    }
+
+    #[test]
+    fn it_compares_equality() {
+        Secret::<u32>::from(&mut 0x0123_4567, |a| {
+            Secret::<u32>::from(&mut 0x0123_4567, |b| {
+                assert_eq!(a, b);
+            });
+        });
+    }
+
+    #[test]
+    fn it_compares_inequality() {
+        Secret::<[u64; 4]>::random(|a| {
+            Secret::<[u64; 4]>::random(|b| {
+                assert_ne!(a, b);
+            });
+        });
+    }
+
+    #[test]
+    fn it_preserves_secrecy() {
+        Secret::<[u64; 2]>::zero(|s| {
+            assert_eq!(
+                format!("{{ {} bytes redacted }}", 16),
+                format!("{:?}", s),
+            );
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: a Secret may not be cloned")]
+    fn it_panics_when_cloned() {
+        #[cfg_attr(feature = "cargo-clippy", allow(clippy::redundant_clone))]
+        Secret::<u16>::zero(|s| { let _ = s.clone(); });
     }
 }
+
+// LCOV_EXCL_STOP
