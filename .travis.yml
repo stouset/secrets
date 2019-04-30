@@ -1,17 +1,17 @@
 os:
   - linux
-  - osx
+  # - osx
 
 language: rust
 
 rust:
   - stable
-  - beta
-  - nightly
+  # - beta
+  # - nightly
 
   # the earliest supported stable release; we depend upon the uniform
   # module paths feature that landed in this version
-  - 1.32.0
+  # - 1.32.0
 
 dist: xenial
 
