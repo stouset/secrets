@@ -174,9 +174,8 @@ impl<T: Bytes + Zeroable> Box<T> {
 
 impl<T: Bytes> Drop for Box<T> {
     fn drop(&mut self) {
-        // if we're panicking and the stack is unwinding, we can't be
-        // certain that the objects holding a reference to us have been
-        // cleaned up correctly and changed our ref count
+        // [`Drop::drop`] is called during stack unwinding, so we may be
+        // in a panic already.
         if !thread::panicking() {
             // if this value is being dropped, we want to ensure that
             // every retain has been balanced with a release
@@ -486,6 +485,21 @@ mod tests {
         for _ in 0..boxed.refs.get() {
             boxed.lock()
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: failed to initialize libsodium")]
+    fn it_detects_sodium_init_failure() {
+        sodium::fail();
+        let _ = Box::<u8>::zero(0);
+    }
+
+
+    #[test]
+    #[should_panic(expected = "secrets: error setting memory protection to NoAccess")]
+    fn it_detects_sodium_mprotect_failure() {
+        sodium::fail();
+        mprotect(std::ptr::null::<u8>(), Prot::NoAccess);
     }
 }
 

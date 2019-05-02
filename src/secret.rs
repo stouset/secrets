@@ -7,6 +7,7 @@ use crate::traits::*;
 use std::borrow::BorrowMut;
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
+use std::thread;
 
 ///
 /// A type for protecting secrets allocated on the stack.
@@ -100,7 +101,7 @@ impl<T: Bytes> Secret<T> {
         };
 
         if unsafe { !sodium::mlock(&secret.data) } {
-            panic!("secrets: unable to mlock memory for a Secret")
+            panic!("secrets: unable to mlock memory for a Secret");
         };
 
         f(RefMut::new(&mut secret.data));
@@ -139,7 +140,11 @@ impl<T: Bytes + Randomizable> Secret<T> {
 impl<T: Bytes> Drop for Secret<T> {
     fn drop(&mut self) {
         if unsafe { !sodium::munlock(&self.data) } {
-            panic!("secrets: unable to munlock memory for a Secret")
+            // [`Drop::drop`] is called during stack unwinding, so we
+            // may be in a panic already.
+            if !thread::panicking() {
+                panic!("secrets: unable to munlock memory for a Secret")
+            }
         };
     }
 }
@@ -276,6 +281,19 @@ mod tests {
     fn it_panics_when_cloned() {
         #[cfg_attr(feature = "cargo-clippy", allow(clippy::redundant_clone))]
         Secret::<u16>::zero(|s| { let _ = s.clone(); });
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: unable to mlock memory for a Secret")]
+    fn it_detects_sodium_mlock_failure() {
+        sodium::fail();
+        Secret::<u8>::zero(|_| {});
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: unable to munlock memory for a Secret")]
+    fn it_detects_sodium_munlock_failure() {
+        Secret::<u8>::zero(|_| sodium::fail());
     }
 }
 

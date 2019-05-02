@@ -10,6 +10,11 @@ use libc::{self, c_int, c_void, size_t};
 static     INIT:        Once = ONCE_INIT;
 static mut INITIALIZED: bool = false;
 
+#[cfg(test)]
+thread_local! {
+    static FAIL: std::cell::Cell<bool> = std::cell::Cell::new(false);
+}
+
 extern "C" {
     fn sodium_init() -> c_int;
 
@@ -29,8 +34,16 @@ extern "C" {
     fn randombytes_buf(ptr: *mut c_void, len: size_t);
 }
 
+#[cfg(test)]
+pub(crate) fn fail() {
+    FAIL.with(|f| f.set(true))
+}
+
 pub(crate) fn init() -> bool {
     unsafe {
+        #[cfg(test)]
+        { if FAIL.with(|f| f.get()) { return false } };
+
         INIT.call_once(|| {
             // TODO: https://www.reddit.com/r/rust/comments/6e0s3g/asserting_static_properties_in_rust/
             // assert sizeof for casts
@@ -65,22 +78,37 @@ pub(crate) unsafe fn free<T>(ptr: *mut T) {
 }
 
 pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_mlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
 pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_munlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
 pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_mprotect_noaccess(ptr as *mut _) == 0
 }
 
 pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_mprotect_readonly(ptr as *mut _) == 0
 }
 
 pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_mprotect_readwrite(ptr as *mut _) == 0
 }
 
