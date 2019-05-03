@@ -611,7 +611,7 @@ mod tests_sigsegv {
     }
 }
 
-#[cfg(all(test, debug_assertions))]
+#[cfg(all(test, profile = "dev"))]
 mod tests_must_checks {
     use super::*;
 

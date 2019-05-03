@@ -90,7 +90,7 @@
 
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 
-#[cfg(not(any(release, coverage)))]
+#[cfg(profile = "dev")]
 #[macro_use]
 mod assert {
     #![allow(unused_macros)]
@@ -100,7 +100,7 @@ mod assert {
     macro_rules! tested { ($cond:expr)  => () }
 }
 
-#[cfg(coverage)]
+#[cfg(profile = "coverage")]
 #[macro_use]
 mod assert {
     #![allow(unused_macros)]
@@ -114,7 +114,7 @@ mod assert {
     }
 }
 
-#[cfg(release)]
+#[cfg(profile = "release")]
 #[macro_use]
 mod assert {
     #![allow(unused_macros)]
