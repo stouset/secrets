@@ -136,15 +136,15 @@ pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
 /// `src`.
 ///
 pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
-    debug_assert!(src.len() <= dst.len());
+    proven!(src.len() <= dst.len());
 
-    // based on the requirements of `ptr::copy_nonoverlapping`, we need
-    // to ensure that either:
+    // Based on the requirements of `ptr::copy_nonoverlapping`, we
+    // attempt to ensure that either:
     //
-    //   * `src` is lower than `dst` and `src` doesn't extend into `dst`, or
-    //   * `src` is higher than `dst` and so we can write into `dst` without
-    //     accidentally clobbering unread bytes of `src`
-    debug_assert!(
+    // * `src` is lower than `dst` and `src` doesn't extend into`dst`, or
+    // * `src` is higher than `dst` and so we can write into `dst` without
+    //   accidentally clobbering unread bytes of `src`
+    proven!(
         (src.as_ptr() < dst.as_ptr() && src.as_ptr().add(src.len()) <= dst.as_ptr()) ||
         (src.as_ptr() > dst.as_ptr())
     );

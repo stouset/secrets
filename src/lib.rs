@@ -90,6 +90,40 @@
 
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 
+#[cfg(not(any(release, coverage)))]
+#[macro_use]
+mod assert {
+    #![allow(unused_macros)]
+    macro_rules! proven { ($($arg:tt)*) => { assert!($($arg)*) } }
+    macro_rules! always { ($cond:expr)  => { { assert!($cond);  true } } }
+    macro_rules! never  { ($cond:expr)  => { { assert!(!$cond); true } } }
+    macro_rules! tested { ($cond:expr)  => () }
+}
+
+#[cfg(coverage)]
+#[macro_use]
+mod assert {
+    #![allow(unused_macros)]
+    macro_rules! proven { ($($arg:tt)*) => () }
+    macro_rules! always { ($cond:expr)  => { true } }
+    macro_rules! never  { ($cond:expr)  => { true } }
+    macro_rules! tested { ($cond:expr)  => {
+        // TODO: replace with [`test::black_box`] when no longer
+        // unstable
+        crate::ffi::sodium::memzero(&mut []) }
+    }
+}
+
+#[cfg(release)]
+#[macro_use]
+mod assert {
+    #![allow(unused_macros)]
+    macro_rules! proven { ($($arg:tt)*) => () }
+    macro_rules! always { ($cond:expr)  => ($cond) }
+    macro_rules! never  { ($cond:expr)  => (!$cond) }
+    macro_rules! tested { ($cond:expr)  => () }
+}
+
 mod ffi {
     pub(crate) mod sodium;
 }

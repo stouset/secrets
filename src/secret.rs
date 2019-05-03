@@ -96,6 +96,8 @@ impl<T: Bytes> Secret<T> {
     ///
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
     pub fn new<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
+        tested!(std::mem::size_of::<T>() == 0);
+
         let mut secret = Self {
             data: T::uninitialized()
         };
