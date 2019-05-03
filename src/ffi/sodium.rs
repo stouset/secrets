@@ -45,9 +45,16 @@ pub(crate) fn init() -> bool {
         { if FAIL.with(|f| f.get()) { return false } };
 
         INIT.call_once(|| {
-            // TODO: https://www.reddit.com/r/rust/comments/6e0s3g/asserting_static_properties_in_rust/
-            // assert sizeof for casts
-            debug_assert_eq!(mem::size_of::<usize>(), mem::size_of::<size_t>());
+            // NOTE: Calls to transmute fail to compile if the source
+            // and destination type have a different size. We (ab)use
+            // this fact to statically assert the size of types at
+            // compile-time.
+            //
+            // We assume that we can freely cast between rust array
+            // sizes and [`libc::size_t`]. If that's not true, DO NOT
+            // COMPILE.
+            #[allow(clippy::useless_transmute)]
+            let _ = std::mem::transmute::<usize, size_t>(0);
 
             // core dumps should be disabled for any programs dealing with
             // cryptographic secrets
