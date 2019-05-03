@@ -10,6 +10,11 @@ use libc::{self, c_int, c_void, size_t};
 static     INIT:        Once = ONCE_INIT;
 static mut INITIALIZED: bool = false;
 
+#[cfg(test)]
+thread_local! {
+    static FAIL: std::cell::Cell<bool> = std::cell::Cell::new(false);
+}
+
 extern "C" {
     fn sodium_init() -> c_int;
 
@@ -29,12 +34,27 @@ extern "C" {
     fn randombytes_buf(ptr: *mut c_void, len: size_t);
 }
 
+#[cfg(test)]
+pub(crate) fn fail() {
+    FAIL.with(|f| f.set(true))
+}
+
 pub(crate) fn init() -> bool {
     unsafe {
+        #[cfg(test)]
+        { if FAIL.with(|f| f.get()) { return false } };
+
         INIT.call_once(|| {
-            // TODO: https://www.reddit.com/r/rust/comments/6e0s3g/asserting_static_properties_in_rust/
-            // assert sizeof for casts
-            debug_assert_eq!(mem::size_of::<usize>(), mem::size_of::<size_t>());
+            // NOTE: Calls to transmute fail to compile if the source
+            // and destination type have a different size. We (ab)use
+            // this fact to statically assert the size of types at
+            // compile-time.
+            //
+            // We assume that we can freely cast between rust array
+            // sizes and [`libc::size_t`]. If that's not true, DO NOT
+            // COMPILE.
+            #[allow(clippy::useless_transmute)]
+            let _ = std::mem::transmute::<usize, size_t>(0);
 
             // core dumps should be disabled for any programs dealing with
             // cryptographic secrets
@@ -65,22 +85,37 @@ pub(crate) unsafe fn free<T>(ptr: *mut T) {
 }
 
 pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_mlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
 pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_munlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
 pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_mprotect_noaccess(ptr as *mut _) == 0
 }
 
 pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_mprotect_readonly(ptr as *mut _) == 0
 }
 
 pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
+    #[cfg(test)]
+    { if FAIL.with(|f| f.get()) { return false } };
+
     sodium_mprotect_readwrite(ptr as *mut _) == 0
 }
 
@@ -108,15 +143,15 @@ pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
 /// `src`.
 ///
 pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
-    debug_assert!(src.len() <= dst.len());
+    proven!(src.len() <= dst.len());
 
-    // based on the requirements of `ptr::copy_nonoverlapping`, we need
-    // to ensure that either:
+    // Based on the requirements of `ptr::copy_nonoverlapping`, we
+    // attempt to ensure that either:
     //
-    //   * `src` is lower than `dst` and `src` doesn't extend into `dst`, or
-    //   * `src` is higher than `dst` and so we can write into `dst` without
-    //     accidentally clobbering unread bytes of `src`
-    debug_assert!(
+    // * `src` is lower than `dst` and `src` doesn't extend into`dst`, or
+    // * `src` is higher than `dst` and so we can write into `dst` without
+    //   accidentally clobbering unread bytes of `src`
+    proven!(
         (src.as_ptr() < dst.as_ptr() && src.as_ptr().add(src.len()) <= dst.as_ptr()) ||
         (src.as_ptr() > dst.as_ptr())
     );

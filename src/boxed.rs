@@ -39,6 +39,9 @@ impl<T: Bytes> Box<T> {
     pub(crate) fn new<F>(len: usize, init: F) -> Self
         where F: FnOnce(&mut [T])
     {
+        tested!(len == 0);
+        tested!(std::mem::size_of::<T>() == 0);
+
         if !sodium::init() {
             panic!("secrets: failed to initialize libsodium");
         }
@@ -49,10 +52,10 @@ impl<T: Bytes> Box<T> {
             .expect("secrets: failed to allocate memory");
 
         // NOTE: We technically could save a little extra work here by
-        // initializing the struct with Prot::NoAccess and a zero
+        // initializing the struct with [`Prot::NoAccess`] and a zero
         // refcount, and manually calling `mprotect` when finished with
         // initialization. However, the `as_mut()` call performs sanity
-        // checks that ensure it's `Prot::ReadWrite` so it's easier to
+        // checks that ensure it's [`Prot::ReadWrite`] so it's easier to
         // just send everything through the "normal" code paths.
         let mut boxed = Self {
             ptr,
@@ -96,10 +99,14 @@ impl<T: Bytes> Box<T> {
     fn retain(&self, prot: Prot) {
         let refs = self.refs.get();
 
+        tested!(refs == refs::min_value());
+        tested!(refs == refs::max_value());
+        tested!(prot == Prot::NoAccess);
+
         if refs == 0 {
             // when retaining, we must retain to a protection level with
             // some access
-            debug_assert!(prot != Prot::NoAccess,
+            proven!(prot != Prot::NoAccess,
                 "secrets: must retain readably or writably");
 
             // allow access to the pointer and record what level of
@@ -114,15 +121,20 @@ impl<T: Bytes> Box<T> {
             // if we have a nonzero retain count, there is nothing to
             // change, but we can assert some invariants:
             //
-            //   * our current protection level *must* be `ReadOnly`
-            //     since `ReadWrite` would imply multiple writers and
-            //     `NoAccess` would imply no readers/writers
+            //   * our current protection level *must not* be
+            //     [`Prot::NoAccess`] or we have underflowed the ref
+            //     counter
+            //   * our current protection level *must not* be
+            //     [`Prot::ReadWrite`] because that would imply non-
+            //     exclusive mutable access
             //   * our target protection level *must* be `ReadOnly`
             //     since otherwise would involve changing the protection
             //     level of a currently-borrowed resource
-            debug_assert_eq!(self.prot.get(), Prot::ReadOnly,
+            proven!(Prot::NoAccess != self.prot.get(),
+                "secrets: out-of-order retain/release detected");
+            proven!(Prot::ReadWrite != self.prot.get(),
                 "secrets: cannot unlock mutably more than once");
-            debug_assert_eq!(prot,            Prot::ReadOnly,
+            proven!(Prot::ReadOnly == prot,
                 "secrets: cannot unlock mutably while unlocked immutably");
         }
 
@@ -133,23 +145,45 @@ impl<T: Bytes> Box<T> {
         // it's infeasible for consumers of this API to actually enforce
         // this. That said, it's unlikely that anyone would need to
         // have more than 255 outstanding retains at one time.
-        self.refs.set(
-            refs.checked_add(1)
-                .expect("secrets: retained too many times")
-        );
+        //
+        // This also protects us in the event of balanced, out-of-order
+        // retain/release code. If an out-of-order `release` causes the
+        // ref counter to wrap around below zero, the subsequent
+        // `retain` will panic here.
+        match refs.checked_add(1) {
+            Some(v)                  => self.refs.set(v),
+            None if self.is_locked() => panic!("secrets: out-of-order retain/release detected"),
+            None                     => panic!("secrets: retained too many times"),
+        };
     }
 
     fn release(&self) {
-        // when releasing, we must have at least one retain and our
-        // protection level must allow some kind of access
-        debug_assert!(self.refs.get() != 0,
+        // When releasing, we should always have at least one retain
+        // outstanding. This is enforced by all users through
+        // refcounting on allocation and drop.
+        proven!(self.refs.get() != 0,
             "secrets: releases exceeded retains");
-        debug_assert!(self.prot.get() != Prot::NoAccess,
-            "secrets: locked memory region released");
 
-        // `checked_sub` isn't necessary here since users should be
-        // statically ensuring that retains and releases are balanced
-        let refs = self.refs.get() - 1;
+        // When releasing, our protection level must allow some kind of
+        // access. If this condition isn't true, it was already
+        // [`Prot::NoAccess`] so at least the memory was protected.
+        proven!(self.prot.get() != Prot::NoAccess,
+            "secrets: releasing memory that's already locked");
+
+        // Deciding whether or not to use `checked_sub` or
+        // `wrapping_sub` here has pros and cons. The `proven!`s above
+        // help us catch this kind of accident in development, but if it
+        // happens in a released library, `wrapping_sub` will cause the
+        // refcount to wrap around.
+        //
+        // `checked_sub` ensures this won't happen, but in the case of
+        // *balanced but out-of-order* retains/releases, this will cause
+        // the retain count to finish nonzero and leave the memory
+        // unlocked for an indeterminate period of time. On the other
+        // hand, `wrapped_sub` will ensure that the subsequent `retain`
+        // will trigger its `checked_add` runtime panic which is
+        // preferable for our purposes.
+        let refs = self.refs.get().wrapping_sub(1);
 
         self.refs.set(refs);
 
@@ -157,6 +191,14 @@ impl<T: Bytes> Box<T> {
             mprotect(self.ptr.as_ptr(), Prot::NoAccess);
             self.prot.set(Prot::NoAccess);
         }
+    }
+
+    ///
+    /// Returns true if the protection level is [`NoAccess`]. Ignores
+    /// ref count.
+    ///
+    fn is_locked(&self) -> bool {
+        self.prot.get() == Prot::NoAccess
     }
 }
 
@@ -174,15 +216,19 @@ impl<T: Bytes + Zeroable> Box<T> {
 
 impl<T: Bytes> Drop for Box<T> {
     fn drop(&mut self) {
-        // if we're panicking and the stack is unwinding, we can't be
-        // certain that the objects holding a reference to us have been
-        // cleaned up correctly and changed our ref count
+        // [`Drop::drop`] is called during stack unwinding, so we may be
+        // in a panic already.
         if !thread::panicking() {
-            // if this value is being dropped, we want to ensure that
-            // every retain has been balanced with a release
-            debug_assert_eq!(0,              self.refs.get(),
+            // If this value is being dropped, we want to ensure that
+            // every retain has been balanced with a release. If this
+            // is not true in release, the memory will be freed
+            // momentarily so we don't need to worry about it.
+            proven!(self.refs.get() == 0,
                 "secrets: retains exceeded releases");
-            debug_assert_eq!(Prot::NoAccess, self.prot.get(),
+
+            // Similarly, any dropped value should have previously been
+            // set to deny any access.
+            proven!(self.prot.get() == Prot::NoAccess,
                 "secrets: dropped secret was still accessible");
         }
 
@@ -198,20 +244,20 @@ impl<T: Bytes> Debug for Box<T> {
 
 impl<T: Bytes> AsRef<[T]> for Box<T> {
     fn as_ref(&self) -> &[T] {
-        // NOTE: after some consideration, I've decided that this method (and
-        // its AsMut sister) *is* safe, so `debug_assert` is used instead of an
-        // `assert` or `panic` to test against misuse without a performance
-        // penalty in release mode.
+        // NOTE: after some consideration, I've decided that this method
+        // and its AsMut sister *are* safe.
         //
-        // Using the retuned ref might cause a SIGSEGV, but this is not UB (in
-        // fact, it's explicitly defined behavior!), cannot cause a data race,
-        // cannot produce an invalid primitive, nor can it break any other
-        // guarantee of "safe Rust". Just a SIGSEGV.
+        // Using the retuned ref might cause a SIGSEGV, but this is not
+        // UB (in fact, it's explicitly defined behavior!), cannot cause
+        // a data race, cannot produce an invalid primitive, nor can it
+        // break any other guarantee of "safe Rust". Just a SIGSEGV.
         //
-        // Note that while this protects against taking a ref against an
-        // locked Box, it doesn't protect against taking a ref to an unlocked
-        // Box and then locking it while the ref is outstanding.
-        debug_assert!(self.prot.get() != Prot::NoAccess,
+        // However, as currently used by wrappers in this crate, these
+        // methods are *never* called on unlocked data. Doing so would
+        // be indicative of a bug, so we want to detect this during
+        // development. If it happens in release mode, it's not
+        // explicitly unsafe so we don't need to enable this check.
+        proven!(self.prot.get() != Prot::NoAccess,
             "secrets: may not call Box::AsRef while locked");
 
         unsafe {
@@ -225,7 +271,7 @@ impl<T: Bytes> AsRef<[T]> for Box<T> {
 
 impl<T: Bytes> AsMut<[T]> for Box<T> {
     fn as_mut(&mut self) -> &mut [T] {
-        debug_assert_eq!(self.prot.get(), Prot::ReadWrite,
+        proven!(self.prot.get() == Prot::ReadWrite,
             "secrets: may not call Box::AsMut unless mutably unlocked");
 
         unsafe {
@@ -453,26 +499,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "secrets: may not call Box::AsRef while locked")]
-    fn it_doesnt_allow_as_ref_while_locked() {
-        let _ = Box::<u8>::zero(1).as_ref();
-    }
-
-    #[test]
-    #[should_panic(expected = "secrets: may not call Box::AsMut unless mutably unlocked")]
-    fn it_doesnt_allow_as_mut_while_locked() {
-        let _ = Box::<u8>::zero(1).as_mut();
-    }
-
-    #[test]
-    #[should_panic(expected = "secrets: may not call Box::AsMut unless mutably unlocked")]
-    fn it_doesnt_allow_as_mut_while_readonly() {
-        let mut boxed = Box::<u8>::zero(1);
-        let _ = boxed.unlock();
-        let _ = boxed.as_mut();
-    }
-
-    #[test]
     #[should_panic(expected = "secrets: retained too many times")]
     fn it_doesnt_allow_overflowing_readers() {
         let boxed = Box::<[u64; 8]>::zero(4);
@@ -486,6 +512,34 @@ mod tests {
         for _ in 0..boxed.refs.get() {
             boxed.lock()
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: out-of-order retain/release detected")]
+    fn it_detects_out_of_order_retains_and_releases_that_underflow() {
+        let boxed = Box::<u8>::zero(0);
+
+        // manually set up this condition, since doing it using the
+        // wrappers will cause other panics to happen
+        boxed.refs.set(boxed.refs.get().wrapping_sub(1));
+        boxed.prot.set(Prot::NoAccess);
+
+        boxed.retain(Prot::ReadOnly);
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: failed to initialize libsodium")]
+    fn it_detects_sodium_init_failure() {
+        sodium::fail();
+        let _ = Box::<u8>::zero(0);
+    }
+
+
+    #[test]
+    #[should_panic(expected = "secrets: error setting memory protection to NoAccess")]
+    fn it_detects_sodium_mprotect_failure() {
+        sodium::fail();
+        mprotect(std::ptr::null::<u8>(), Prot::NoAccess);
     }
 }
 
@@ -525,7 +579,10 @@ mod tests_sigsegv {
     #[test]
     fn it_kills_attempts_to_read_while_locked() {
         assert_sigsegv(|| {
-            let _ = unsafe { Box::<u32>::zero(1).ptr.as_ptr().read() };
+            let val = unsafe { Box::<u32>::zero(1).ptr.as_ptr().read() };
+
+            // TODO: replace with [`test::black_box`] when stable
+            let _ = sodium::memcmp(val.as_bytes(), val.as_bytes());
         });
     }
 
@@ -554,8 +611,8 @@ mod tests_sigsegv {
     }
 }
 
-#[cfg(all(test, debug_assertions))]
-mod tests_debug_assertions {
+#[cfg(all(test, profile = "dev"))]
+mod tests_must_checks {
     use super::*;
 
     #[test]
@@ -602,6 +659,27 @@ mod tests_debug_assertions {
     fn it_doesnt_allow_outstanding_writers() {
         let _ = Box::<u8>::zero(1).unlock_mut();
     }
+
+    #[test]
+    #[should_panic(expected = "secrets: may not call Box::AsRef while locked")]
+    fn it_doesnt_allow_as_ref_while_locked() {
+        let _ = Box::<u8>::zero(1).as_ref();
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: may not call Box::AsMut unless mutably unlocked")]
+    fn it_doesnt_allow_as_mut_while_locked() {
+        let _ = Box::<u8>::zero(1).as_mut();
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: may not call Box::AsMut unless mutably unlocked")]
+    fn it_doesnt_allow_as_mut_while_readonly() {
+        let mut boxed = Box::<u8>::zero(1);
+        let _ = boxed.unlock();
+        let _ = boxed.as_mut();
+    }
+
 }
 
 // LCOV_EXCL_STOP

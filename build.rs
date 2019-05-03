@@ -1,5 +1,6 @@
 use ctest::TestGenerator;
 use pkg_config::{Config as PkgConfig, Library, Error};
+use std::env;
 
 fn main() {
     TestGenerator::new()
@@ -11,6 +12,14 @@ fn main() {
         // naïvely
         println!("cargo:rustc-link-lib=dylib=sodium");
     };
+
+    if env::var("COVERAGE").is_ok() {
+        println!("cargo:rustc-cfg=profile=\"coverage\"");
+    } else if Ok("release".to_string()) == env::var("PROFILE") {
+        println!("cargo:rustc-cfg=profile=\"release\"");
+    } else {
+        println!("cargo:rustc-cfg=profile=\"dev\"");
+    }
 }
 
 fn link(name: &str, version: &str) -> Option<Library> {
