@@ -9,6 +9,8 @@ use std::thread;
 use std::ptr::NonNull;
 use std::slice;
 
+type RefCount = u8;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Prot {
     NoAccess,
@@ -32,7 +34,7 @@ pub(crate) struct Box<T: Bytes> {
     ptr:  NonNull<T>,
     len:  usize,
     prot: Cell<Prot>,
-    refs: Cell<u8>,
+    refs: Cell<RefCount>,
 }
 
 impl<T: Bytes> Box<T> {
@@ -99,8 +101,8 @@ impl<T: Bytes> Box<T> {
     fn retain(&self, prot: Prot) {
         let refs = self.refs.get();
 
-        tested!(refs == refs::min_value());
-        tested!(refs == refs::max_value());
+        tested!(refs == RefCount::min_value());
+        tested!(refs == RefCount::max_value());
         tested!(prot == Prot::NoAccess);
 
         if refs == 0 {

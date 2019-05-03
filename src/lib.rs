@@ -108,10 +108,11 @@ mod assert {
     macro_rules! always { ($cond:expr)  => { true } }
     macro_rules! never  { ($cond:expr)  => { true } }
     macro_rules! tested { ($cond:expr)  => {
-        // TODO: replace with [`test::black_box`] when no longer
-        // unstable
-        crate::ffi::sodium::memzero(&mut []) }
-    }
+        if $cond {
+            // TODO: replace with [`test::black_box`] when stable
+            let _ = crate::ffi::sodium::memcmp(&[], &[]);
+        }
+    } }
 }
 
 #[cfg(profile = "release")]
