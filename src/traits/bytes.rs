@@ -1,4 +1,4 @@
-use std::mem;
+use std::mem::{self, MaybeUninit};
 use std::slice;
 
 ///
@@ -36,13 +36,11 @@ pub unsafe trait Bytes : Sized + Copy {
     /// bugs due to uninitialized data.
     ///
     fn uninitialized() -> Self {
-        // TODO: when MaybeUninit is stable, rework this to return
-        // actually-uninitialized data, and have callers either write
-        // zeroes or garbage or real data into it as necessary
+        let mut val = MaybeUninit::<Self>::uninit();
+
         unsafe {
-            let mut val : Self = mem::uninitialized();
-            val.as_mut_u8_ptr().write_bytes(GARBAGE_VALUE, val.size());
-            val
+            val.as_mut_ptr().write_bytes(GARBAGE_VALUE, 1);
+            val.assume_init()
         }
     }
 
