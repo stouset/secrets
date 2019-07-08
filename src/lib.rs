@@ -43,6 +43,12 @@
 //! ```
 //!
 
+// TODO: SecretBox
+// TODO: README
+// TODO: examples directory
+// TODO: sqlite-like assert, always, never, testcase
+// TODO: replace sodium::fail() with mocks for testing cleanliness
+
 #![warn(future_incompatible)]
 #![warn(nonstandard_style)]
 #![warn(rust_2018_compatibility)]
@@ -77,7 +83,7 @@
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::float_cmp_const))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::indexing_slicing))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::mem_forget))]
-// #![cfg_attr(feature = "cargo-clippy", warn(clippy::missing_docs_in_private_items))]
+#![cfg_attr(feature = "cargo-clippy", warn(clippy::missing_docs_in_private_items))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::print_stdout))]
@@ -90,6 +96,29 @@
 
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 
+///
+/// Macros for ensuring code correctness inspired by [sqlite].
+///
+/// * `proven` results in an `assert!` in debug builds but is a no-op in
+///   coverage and release builds, since we have extraordinarily high
+///   guarantees that it is impossible for this condition to happen in
+///   released code
+/// * `always` is intended to be used in a conditional expression, and
+///   must have the negative case handled in the event that we're wrong;
+///   in debug builds it performs an `assert!`, in coverage builds it
+///   expands to `true`, and in production builds it evaluates to the
+///   condition itself
+/// * `never` is the logical opposite of `always`
+/// * `tested` ensures, for code-coverage purposes, that we have tests
+///   for which the condition provided evaluates to `true`, this allows
+///   us to ensure at the source location itself that known edge cases
+///   are considered and tested; in debug and release builds it's a
+///   no-op, and in coverage builds it does some work that can't be
+///   optimized away, so the coverage tool can ensure that that work is
+///   performed at least once (and therefore the condition was tested)
+///
+/// [sqlite]: https://www.sqlite.org/assert.html
+///
 #[cfg(profile = "dev")]
 #[macro_use]
 mod assert {
@@ -100,6 +129,7 @@ mod assert {
     macro_rules! tested { ($cond:expr)  => () }
 }
 
+/// See above.
 #[cfg(profile = "coverage")]
 #[macro_use]
 mod assert {
@@ -127,6 +157,7 @@ mod assert {
     } }
 }
 
+/// See above.
 #[cfg(profile = "release")]
 #[macro_use]
 mod assert {
@@ -137,13 +168,20 @@ mod assert {
     macro_rules! tested { ($cond:expr)  => () }
 }
 
+/// Container for FFI-related code.
 mod ffi {
     pub(crate) mod sodium;
 }
 
+/// Container for `Box`.
 mod boxed;
+
+/// Container for `Secret`.
 mod secret;
+
 // mod secret_box;
+
+/// Container for `SecretVec`.
 mod secret_vec;
 
 pub mod traits;

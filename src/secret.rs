@@ -81,11 +81,19 @@ use std::thread;
 /// [mlock]: http://man7.org/linux/man-pages/man2/mlock.2.html
 ///
 pub struct Secret<T: Bytes> {
+    /// The internal protected memory for the [`Secret`].
     data: T,
 }
 
+///
+/// A mutable [`Deref`]-wrapper around a [`Secret`]'s internal
+/// contents that intercepts calls like [`Clone::clone`] and
+/// [`Debug::fmt`] that are likely to result in the inadvertent
+/// disclosure of secret data.
+///
 #[derive(Eq)]
 pub struct RefMut<'a, T: ConstantEq> {
+    /// a reference to the underlying secret data that will be derefed
     data: &'a mut T,
 }
 
@@ -152,6 +160,9 @@ impl<T: Bytes> Drop for Secret<T> {
 }
 
 impl<'a, T: ConstantEq> RefMut<'a, T> {
+    ///
+    /// Instantiates a new `RefMut`.
+    ///
     pub(crate) fn new(data: &'a mut T) -> Self {
         Self { data }
     }
