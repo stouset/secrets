@@ -11,37 +11,6 @@
 //! allocation, an underflow canary (to catch underflows before a
 //! guard page), and are zeroed out when freed.
 //!
-//! # Example: generate cryptographically-random secrets on the stack
-//!
-//! This shows how to generate cryptographically-random 256-bit
-//! secrets for use with encryption libraries.
-//!
-//! ```
-//! # // TODO: allow tuple'd secrets to prevent needing nested calls
-//! # use secrets::Secret;
-//! use libsodium_sys as sodium;
-//!
-//! # unsafe { sodium::sodium_init() };
-//! Secret::<[u8; 32]>::random(|key| {
-//!     Secret::<[u8; 32]>::random(|nonce| {
-//!         let     plaintext  = b"message";
-//!         let mut ciphertext = [0u8; 7 + sodium::crypto_secretbox_MACBYTES as usize];
-//!
-//!         unsafe {
-//!             let ret = sodium::crypto_secretbox_easy(
-//!                 ciphertext.as_mut_ptr(),
-//!                 plaintext.as_ptr(),
-//!                 plaintext.len() as _,
-//!                 nonce.as_ptr(),
-//!                 key.as_ptr(),
-//!             );
-//!
-//!             assert_eq!(ret, 0);
-//!         }
-//!     });
-//! });
-//! ```
-//!
 
 // TODO: SecretBox
 // TODO: README
