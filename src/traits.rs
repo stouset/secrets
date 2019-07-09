@@ -8,9 +8,19 @@
 // is not actually allowed by the language
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::missing_const_for_fn))]
 
+/// Traits for types that are considered buckets of bytes.
 mod bytes;
+
+/// Traits for types that should be compared for equality in constant
+/// time.
 mod constant_eq;
+
+/// Traits for types that can have their underlying storage safely set
+/// to any arbitrary bytes.
 mod randomizable;
+
+/// Traits for types that can have their underlying storage safely
+/// zeroed.
 mod zeroable;
 
 pub use bytes::{Bytes, AsContiguousBytes};
@@ -35,6 +45,8 @@ macro_rules! impls {
 }
 
 impls!{
+    (), // maybe not super useful, but good as a smoke test
+
     u8, u16, u32, u64, u128; (
 
      0  1  2  3  4  5  6  7  8  9

@@ -7,7 +7,12 @@ use std::sync::{Once, ONCE_INIT};
 
 use libc::{self, c_int, c_void, size_t};
 
+/// The global [`sync::Once`] that ensures we only perform
+/// library initialization one time.
 static     INIT:        Once = ONCE_INIT;
+
+/// A flag that returns whether or not this library has been safely
+/// initialized.
 static mut INITIALIZED: bool = false;
 
 #[cfg(test)]
@@ -39,10 +44,19 @@ pub(crate) fn fail() {
     FAIL.with(|f| f.set(true))
 }
 
+///
+/// Initialized libsodium. This function *must* be called at least once
+/// prior to using any of the other functions in this library, and
+/// callers *must* verify that it returns `true`. If it returns `false`,
+/// libsodium was unable to be properly set up and this library *must
+/// not* be used.
+///
+/// Calling it multiple times is a no-op.
+///
 pub(crate) fn init() -> bool {
     unsafe {
         #[cfg(test)]
-        { if FAIL.with(|f| f.get()) { return false } };
+        { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
 
         INIT.call_once(|| {
             // NOTE: Calls to transmute fail to compile if the source
@@ -76,45 +90,79 @@ pub(crate) fn init() -> bool {
     }
 }
 
+///
+/// Allocates memory that can store `count` objects of type `T` and
+/// fills that memory with garbage bytes. Callers must ensure that they
+/// call [`sodium::free`] when this memory is no longer used.
+///
 pub(crate) unsafe fn allocarray<T>(count: usize) -> *mut T {
     sodium_allocarray(count, mem::size_of::<T>()) as *mut _
 }
 
+///
+/// Releases memory acquired with [`sodium::allocarray`]. This function
+/// may panic if it detects that certain soundness and safety guarantees
+/// have been violated (e.g., an underflowing write).
+///
 pub(crate) unsafe fn free<T>(ptr: *mut T) {
     sodium_free(ptr as *mut _)
 }
 
+///
+/// Calls the platform's underlying `mlock(2)` implementation.
+///
 pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(|f| f.get()) { return false } };
+    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
 
     sodium_mlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
+///
+/// Calls the platform's underlying `munlock(2)` implementation.
+///
 pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(|f| f.get()) { return false } };
+    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
 
     sodium_munlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
+///
+/// Sets the page protection level of [`sodium::allocarray`]-allocated
+/// memory to `PROT_NONE`. This must be used in lieu of a raw call to
+/// `mprotect` which is unaware of the specific allocation pattern used
+/// by libsodium.
+///
 pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(|f| f.get()) { return false } };
+    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
 
     sodium_mprotect_noaccess(ptr as *mut _) == 0
 }
 
+///
+/// Sets the page protection level of [`sodium::allocarray`]-allocated
+/// memory to `PROT_READ`. This must be used in lieu of a raw call to
+/// `mprotect` which is unaware of the specific allocation pattern used
+/// by libsodium.
+///
 pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(|f| f.get()) { return false } };
+    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
 
     sodium_mprotect_readonly(ptr as *mut _) == 0
 }
 
+///
+/// Sets the page protection level of [`sodium::allocarray`]-allocated
+/// memory to `PROT_WRITE`. This must be used in lieu of a raw call to
+/// `mprotect` which is unaware of the specific allocation pattern used
+/// by libsodium.
+///
 pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(|f| f.get()) { return false } };
+    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
 
     sodium_mprotect_readwrite(ptr as *mut _) == 0
 }

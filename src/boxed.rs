@@ -9,14 +9,35 @@ use std::thread;
 use std::ptr::NonNull;
 use std::slice;
 
-type RefCount = u8;
-
+///
+/// The page protection applied to the memory underlying a [`Box`].
+///
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Prot {
+    /// Any attempt to read, write, or execute this memory will result
+    /// in a segfault.
     NoAccess,
+
+    /// Any attempt to write to or execute the contents of this memory
+    /// will result in a segfault. Reads are permitted.
     ReadOnly,
+
+    /// Any attempt to execute the contents of this memory will result
+    /// in a segfault. Reads and writes are permitted.
     ReadWrite,
 }
+
+///
+/// The type used for storing ref counts. Overflowing this type by
+/// borrowing too many times will cause a runtime panic. It seems
+/// implausible that there would be many legitimate use-cases where
+/// someone needs more than 255 simultaneous borrows of secret data.
+///
+/// TODO: Perhaps this could be moved to an associated type on a trait,
+/// such that a user who did need a larger value could provide a
+/// larger replacement.
+///
+type RefCount = u8;
 
 ///
 /// NOTE: This implementation is not meant to be exposed directly to
@@ -31,13 +52,29 @@ enum Prot {
 ///
 #[derive(Eq)]
 pub(crate) struct Box<T: Bytes> {
+    /// the non-null pointer to the underlying protected memory
     ptr:  NonNull<T>,
+
+    /// the number of elements of `T` that can be stored in `ptr`
     len:  usize,
+
+    /// the pointer's current protection level
     prot: Cell<Prot>,
+
+    /// the number of outstanding borrows; mutable borrows are tracked
+    /// here even though there is a max of one, so that asserts can
+    /// ensure invariants are obeyed
     refs: Cell<RefCount>,
 }
 
 impl<T: Bytes> Box<T> {
+    ///
+    /// Instantiates a new [`Box`] that can hold `len` elements of type
+    /// `T`. The callback `F` will be used for initialization and will
+    /// be called with a mutable reference to a slice containing these
+    /// elements. The memory will be pre-filled with fixed bytes of
+    /// arbitrary value.
+    ///
     pub(crate) fn new<F>(len: usize, init: F) -> Self
         where F: FnOnce(&mut [T])
     {
@@ -72,32 +109,77 @@ impl<T: Bytes> Box<T> {
         boxed
     }
 
+    ///
+    /// Returns the number of elements in the [`Box`].
+    ///
     pub(crate) fn len(&self) -> usize {
         self.len
     }
 
+    ///
+    /// Returns true if the [`Box`] is empty.
+    ///
     pub(crate) fn is_empty(&self) -> bool {
         self.len == 0
     }
 
+    ///
+    /// Returns the size in bytes of the data contained in the [`Box`].
+    /// This does not include incidental metadata used in the
+    /// implementation of [`Box`] itself, only the size of the data
+    /// allocated on behalf of the user.
+    ///
+    /// It is the maximum number of bytes that can be read from the
+    /// internal pointer.
+    ///
     pub(crate) fn size(&self) -> usize {
         self.len * T::size()
     }
 
+    ///
+    /// Allows the contents of the [`Box`] to be read from. Any call to
+    /// this function *must* be balanced with a call to
+    /// [`lock`][Box::lock]. Mirroring Rust's borrowing rules, there may
+    /// be any number of outstanding immutable unlocks (technically,
+    /// limited by the max value of [`RefCount`]) *or* one mutable
+    /// unlock.
+    ///
     pub(crate) fn unlock(&self) -> &Self {
         self.retain(Prot::ReadOnly);
         self
     }
 
+    ///
+    /// Allows the contents of the [`Box`] to be read from and written
+    /// to. Any call to this function *must* be balanced with a call to
+    /// [`lock`][Box::lock]. Mirroring Rust's borrowing rules, there may
+    /// be any number of outstanding immutable unlocks (technically,
+    /// limited by the max value of [`RefCount`]) *or* one mutable
+    /// unlock.
+    ///
     pub(crate) fn unlock_mut(&mut self) -> &mut Self {
         self.retain(Prot::ReadWrite);
         self
     }
 
+    ///
+    /// Disables all access to the underlying memory. Must only be
+    /// called to precisely balance prior calls to [`unlock`][Box::unlock]
+    /// and [`unlock_mut`][Box::unlock_mut].
+    ///
+    /// Calling this method in excess of the number of outstanding
+    /// unlocks will result in a runtime panic. Omitting a call to this
+    /// method and leaving an outstanding unlock will result in a
+    /// runtime panic when this object is dropped.
+    ///
     pub(crate) fn lock(&self) {
         self.release()
     }
 
+    ///
+    /// Performs the underlying retain half of the retain/release logic
+    /// for monitoring outstanding calls to unlock.
+    ///
     fn retain(&self, prot: Prot) {
         let refs = self.refs.get();
 
@@ -159,6 +241,11 @@ impl<T: Bytes> Box<T> {
         };
     }
 
+    ///
+    /// Removes one outsdanding retain, and changes the memory
+    /// protection level back to [`Prot::NoAccess`] when the number of
+    /// outstanding retains reaches zero.
+    ///
     fn release(&self) {
         // When releasing, we should always have at least one retain
         // outstanding. This is enforced by all users through
@@ -174,17 +261,22 @@ impl<T: Bytes> Box<T> {
 
         // Deciding whether or not to use `checked_sub` or
         // `wrapping_sub` here has pros and cons. The `proven!`s above
-        // help us catch this kind of accident in development, but if it
-        // happens in a released library, `wrapping_sub` will cause the
-        // refcount to wrap around.
+        // help us catch this kind of accident in development, but if
+        // a released library has a bug that has imbalanced
+        // retains/releases, `wrapping_sub` will cause the refcount to
+        // underflow and wrap.
         //
-        // `checked_sub` ensures this won't happen, but in the case of
-        // *balanced but out-of-order* retains/releases, this will cause
-        // the retain count to finish nonzero and leave the memory
-        // unlocked for an indeterminate period of time. On the other
-        // hand, `wrapped_sub` will ensure that the subsequent `retain`
-        // will trigger its `checked_add` runtime panic which is
-        // preferable for our purposes.
+        // `checked_sub` ensures that wrapping won't happen, but will
+        // cause consistency issues in the event of balanced but
+        // *out-of-order* calls to retain/release. In such a scenario,
+        // this will cause the retain count to be nonzero at drop time,
+        // leaving the memory unlocked for an indeterminate period of
+        // time.
+        //
+        // We choose `wrapped_sub` here because, by undeflowing, it will
+        // ensure that a subsequent `retain` will not unlock the memory
+        // and will trigger a `checked_add` runtime panic which we find
+        // preferable for safety purposes.
         let refs = self.refs.get().wrapping_sub(1);
 
         self.refs.set(refs);
@@ -205,12 +297,19 @@ impl<T: Bytes> Box<T> {
 }
 
 impl<T: Bytes + Randomizable> Box<T> {
+    ///
+    /// Instantiates a new [`Box`] with crypotgraphically-randomized
+    /// contents.
+    ///
     pub(crate) fn random(len: usize) -> Self {
         Self::new(len, Randomizable::randomize)
     }
 }
 
 impl<T: Bytes + Zeroable> Box<T> {
+    ///
+    /// Instantiates a new [`Box`] whose backing memory is zeroed.
+    ///
      pub(crate) fn zero(len: usize) -> Self {
          Self::new(len, Zeroable::zero)
      }
@@ -321,6 +420,9 @@ impl<T: Bytes + Zeroable> From<&mut [T]> for Box<T> {
 
 unsafe impl<T: Bytes + Send> Send for Box<T> { }
 
+///
+/// Immediately changes the page protection level on `ptr` to `prot`.
+///
 fn mprotect<T>(ptr: *const T, prot: Prot) {
     if !match prot {
         Prot::NoAccess  => unsafe { sodium::mprotect_noaccess(ptr)  },

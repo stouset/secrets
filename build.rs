@@ -15,7 +15,7 @@ fn main() {
 
     if env::var("COVERAGE").is_ok() {
         println!("cargo:rustc-cfg=profile=\"coverage\"");
-    } else if Ok("release".to_string()) == env::var("PROFILE") {
+    } else if env::var("PROFILE") == Ok("release".into()) {
         println!("cargo:rustc-cfg=profile=\"release\"");
     } else {
         println!("cargo:rustc-cfg=profile=\"dev\"");
