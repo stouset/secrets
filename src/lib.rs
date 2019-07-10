@@ -88,7 +88,7 @@
 ///
 /// [sqlite]: https://www.sqlite.org/assert.html
 ///
-#[cfg(profile = "dev")]
+#[cfg(profile = "debug")]
 #[macro_use]
 mod assert {
     #![allow(unused_macros)]

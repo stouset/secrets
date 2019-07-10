@@ -226,14 +226,7 @@ pub(crate) fn memrandom(bytes: &mut [u8]) {
 
 #[cfg(test)]
 mod test {
-    #![allow(warnings)]
-
     use super::*;
-
-    include!(concat!(env!("OUT_DIR"), "/sodium_ctest.rs"));
-
-    #[test]
-    fn ctest() { main(); }
 
     #[test]
     fn memcmp_compares_equality() {
@@ -254,6 +247,18 @@ mod test {
         assert!(memcmp(&a, &c) == false);
         assert!(memcmp(&c, &a) == false);
     }
+}
+
+#[cfg(all(test, profile = "debug"))]
+mod test_ffi {
+    #![allow(warnings)]
+
+    use super::*;
+
+    include!(concat!(env!("OUT_DIR"), "/sodium_ctest.rs"));
+
+    #[test]
+    fn ctest() { main(); }
 }
 
 // LCOV_EXCL_STOP
