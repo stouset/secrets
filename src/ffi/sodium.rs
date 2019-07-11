@@ -3,13 +3,13 @@
 #![allow(unsafe_code)]
 
 use std::mem;
-use std::sync::{Once, ONCE_INIT};
+use std::sync::Once;
 
 use libc::{self, c_int, c_void, size_t};
 
 /// The global [`sync::Once`] that ensures we only perform
 /// library initialization one time.
-static     INIT:        Once = ONCE_INIT;
+static INIT: Once = Once::new();
 
 /// A flag that returns whether or not this library has been safely
 /// initialized.
