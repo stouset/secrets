@@ -103,7 +103,7 @@ impl<T: Bytes> Box<T> {
             refs: Cell::new(1),
         };
 
-        init(boxed.as_mut());
+        init(boxed.as_mut_slice());
 
         boxed.lock();
         boxed
@@ -174,6 +174,36 @@ impl<T: Bytes> Box<T> {
     ///
     pub(crate) fn lock(&self) {
         self.release()
+    }
+
+    /// Converts the [`Box`]'s contents into a slice. This must only
+    /// happen while it is unlocked, and the slice must go out of scope
+    /// before it is locked.
+    pub(crate) fn as_slice(&self) -> &[T] {
+        proven!(self.prot.get() != Prot::NoAccess,
+            "secrets: may not call Box::as_slice while locked");
+
+        unsafe {
+            slice::from_raw_parts(
+                self.ptr.as_ptr(),
+                self.len
+            )
+        }
+    }
+
+    /// Converts the [`Box`]'s contents into a mutable slice. This must
+    /// only happen while it is mutably unlocked, and the slice must go
+    /// out of scope before it is locked.
+    pub(crate) fn as_mut_slice(&mut self) -> &mut [T] {
+        proven!(self.prot.get() == Prot::ReadWrite,
+            "secrets: may not call Box::as_mut_slice unless mutably unlocked");
+
+        unsafe {
+            slice::from_raw_parts_mut(
+                self.ptr.as_ptr(),
+                self.len
+            )
+        }
     }
 
     ///
@@ -343,51 +373,10 @@ impl<T: Bytes> Debug for Box<T> {
     }
 }
 
-impl<T: Bytes> AsRef<[T]> for Box<T> {
-    fn as_ref(&self) -> &[T] {
-        // NOTE: after some consideration, I've decided that this method
-        // and its AsMut sister *are* safe.
-        //
-        // Using the retuned ref might cause a SIGSEGV, but this is not
-        // UB (in fact, it's explicitly defined behavior!), cannot cause
-        // a data race, cannot produce an invalid primitive, nor can it
-        // break any other guarantee of "safe Rust". Just a SIGSEGV.
-        //
-        // However, as currently used by wrappers in this crate, these
-        // methods are *never* called on unlocked data. Doing so would
-        // be indicative of a bug, so we want to detect this during
-        // development. If it happens in release mode, it's not
-        // explicitly unsafe so we don't need to enable this check.
-        proven!(self.prot.get() != Prot::NoAccess,
-            "secrets: may not call Box::AsRef while locked");
-
-        unsafe {
-            slice::from_raw_parts(
-                self.ptr.as_ptr(),
-                self.len
-            )
-        }
-    }
-}
-
-impl<T: Bytes> AsMut<[T]> for Box<T> {
-    fn as_mut(&mut self) -> &mut [T] {
-        proven!(self.prot.get() == Prot::ReadWrite,
-            "secrets: may not call Box::AsMut unless mutably unlocked");
-
-        unsafe {
-            slice::from_raw_parts_mut(
-                self.ptr.as_mut(),
-                self.len
-            )
-        }
-    }
-}
-
 impl<T: Bytes> Clone for Box<T> {
     fn clone(&self) -> Self {
         Self::new(self.len, |s| {
-            s.copy_from_slice(self.unlock().as_ref());
+            s.copy_from_slice(self.unlock().as_slice());
             self.lock();
         })
     }
@@ -399,8 +388,8 @@ impl<T: Bytes + ConstantEq> PartialEq for Box<T> {
             return false;
         }
 
-        let lhs = self.unlock().as_ref();
-        let rhs = other.unlock().as_ref();
+        let lhs = self.unlock().as_slice();
+        let rhs = other.unlock().as_slice();
 
         let ret = lhs.constant_eq(rhs);
 
@@ -413,7 +402,7 @@ impl<T: Bytes + ConstantEq> PartialEq for Box<T> {
 
 impl<T: Bytes + Zeroable> From<&mut [T]> for Box<T> {
     fn from(data: &mut [T]) -> Self {
-        // this is safe since the secret and data will never overlap
+        // this is safe since the secret and data can never overlap
         Self::new(data.len(), |s| unsafe { data.transfer(s) })
     }
 }
@@ -445,14 +434,14 @@ mod tests {
             secret.clone_from_slice(b"\x04");
         });
 
-        assert_eq!(boxed.unlock().as_ref(), b"\x04", );
+        assert_eq!(boxed.unlock().as_slice(), [0x04]);
         boxed.lock();
     }
 
     #[test]
     fn it_initializes_with_garbage() {
-        let boxed           = Box::<u8>::new(4, |_| {});
-        let unboxed : &[u8] = boxed.unlock().as_ref();
+        let boxed   = Box::<u8>::new(4, |_| {});
+        let unboxed = boxed.unlock().as_slice();
 
         // sodium changed the value of the garbage byte they used, so we
         // allocate a byte and see what's inside to probe for the
@@ -478,7 +467,7 @@ mod tests {
     fn it_initializes_with_zero() {
         let boxed = Box::<u32>::zero(4);
 
-        assert_eq!(boxed.unlock().as_ref(), [0, 0, 0, 0]);
+        assert_eq!(boxed.unlock().as_slice(), [0, 0, 0, 0]);
         boxed.lock();
     }
 
@@ -487,8 +476,8 @@ mod tests {
         let mut value = [4_u64];
         let     boxed = Box::from(&mut value[..]);
 
-        assert_eq!(value,                   [0]);
-        assert_eq!(boxed.unlock().as_ref(), [4]);
+        assert_eq!(value,                     [0]);
+        assert_eq!(boxed.unlock().as_slice(), [4]);
 
         boxed.lock();
     }
@@ -584,7 +573,7 @@ mod tests {
 
         let child = thread::spawn(move || {
             let boxed = Box::<u64>::random(1);
-            let value = boxed.unlock().as_ref().to_vec();
+            let value = boxed.unlock().as_slice().to_vec();
 
             // here we send an *unlocked* Box to the rx side; this lets
             // us make sure that the sent Box isn't dropped when this
@@ -596,7 +585,7 @@ mod tests {
         let (boxed, value) = rx.recv().expect("failed to read from channel");
 
         assert_eq!(Prot::ReadOnly, boxed.prot.get());
-        assert_eq!(value,          boxed.as_ref());
+        assert_eq!(value,          boxed.as_slice());
 
         child.join().expect("child terminated");
         boxed.lock();
@@ -621,7 +610,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "secrets: out-of-order retain/release detected")]
     fn it_detects_out_of_order_retains_and_releases_that_underflow() {
-        let boxed = Box::<u8>::zero(0);
+        let boxed = Box::<u8>::zero(5);
 
         // manually set up this condition, since doing it using the
         // wrappers will cause other panics to happen
@@ -701,7 +690,7 @@ mod tests_sigsegv {
     fn it_kills_attempts_to_read_after_explicitly_locked() {
         assert_sigsegv(|| {
             let boxed = Box::<u32>::random(4);
-            let val   = boxed.unlock().as_ref();
+            let val   = boxed.unlock().as_slice();
             let _     = boxed.unlock();
 
             boxed.lock();
@@ -765,25 +754,24 @@ mod tests_must_checks {
     }
 
     #[test]
-    #[should_panic(expected = "secrets: may not call Box::AsRef while locked")]
-    fn it_doesnt_allow_as_ref_while_locked() {
-        let _ = Box::<u8>::zero(1).as_ref();
+    #[should_panic(expected = "secrets: may not call Box::as_slice while locked")]
+    fn it_doesnt_allow_as_slice_while_locked() {
+        let _ = Box::<u8>::zero(1).as_slice();
     }
 
     #[test]
-    #[should_panic(expected = "secrets: may not call Box::AsMut unless mutably unlocked")]
-    fn it_doesnt_allow_as_mut_while_locked() {
-        let _ = Box::<u8>::zero(1).as_mut();
+    #[should_panic(expected = "secrets: may not call Box::as_mut_slice unless mutably unlocked")]
+    fn it_doesnt_allow_as_mut_slice_while_locked() {
+        let _ = Box::<u8>::zero(1).as_mut_slice();
     }
 
     #[test]
-    #[should_panic(expected = "secrets: may not call Box::AsMut unless mutably unlocked")]
-    fn it_doesnt_allow_as_mut_while_readonly() {
+    #[should_panic(expected = "secrets: may not call Box::as_mut_slice unless mutably unlocked")]
+    fn it_doesnt_allow_as_mut_slice_while_readonly() {
         let mut boxed = Box::<u8>::zero(1);
         let _ = boxed.unlock();
-        let _ = boxed.as_mut();
+        let _ = boxed.as_mut_slice();
     }
-
 }
 
 // LCOV_EXCL_STOP
