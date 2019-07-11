@@ -12,7 +12,6 @@
 //! guard page), and are zeroed out when freed.
 //!
 
-// TODO: SecretBox
 // TODO: README
 // TODO: examples directory
 // TODO: sqlite-like assert, always, never, testcase
@@ -148,7 +147,8 @@ mod boxed;
 /// Container for `Secret`.
 mod secret;
 
-// mod secret_box;
+/// Container for `SecretBox`.
+mod secret_box;
 
 /// Container for `SecretVec`.
 mod secret_vec;
@@ -156,5 +156,5 @@ mod secret_vec;
 pub mod traits;
 
 pub use secret::Secret;
-// pub use secret_box::SecretBox;
+pub use secret_box::SecretBox;
 pub use secret_vec::SecretVec;
