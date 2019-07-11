@@ -44,7 +44,6 @@ pub(crate) fn fail() {
     FAIL.with(|f| f.set(true))
 }
 
-///
 /// Initialized libsodium. This function *must* be called at least once
 /// prior to using any of the other functions in this library, and
 /// callers *must* verify that it returns `true`. If it returns `false`,
@@ -52,7 +51,6 @@ pub(crate) fn fail() {
 /// not* be used.
 ///
 /// Calling it multiple times is a no-op.
-///
 pub(crate) fn init() -> bool {
     unsafe {
         #[cfg(test)]
@@ -90,27 +88,21 @@ pub(crate) fn init() -> bool {
     }
 }
 
-///
 /// Allocates memory that can store `count` objects of type `T` and
 /// fills that memory with garbage bytes. Callers must ensure that they
 /// call [`sodium::free`] when this memory is no longer used.
-///
 pub(crate) unsafe fn allocarray<T>(count: usize) -> *mut T {
     sodium_allocarray(count, mem::size_of::<T>()) as *mut _
 }
 
-///
 /// Releases memory acquired with [`sodium::allocarray`]. This function
 /// may panic if it detects that certain soundness and safety guarantees
 /// have been violated (e.g., an underflowing write).
-///
 pub(crate) unsafe fn free<T>(ptr: *mut T) {
     sodium_free(ptr as *mut _)
 }
 
-///
 /// Calls the platform's underlying `mlock(2)` implementation.
-///
 pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
     #[cfg(test)]
     { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
@@ -118,9 +110,7 @@ pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
     sodium_mlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
-///
 /// Calls the platform's underlying `munlock(2)` implementation.
-///
 pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
     #[cfg(test)]
     { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
@@ -128,12 +118,10 @@ pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
     sodium_munlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
 
-///
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
 /// memory to `PROT_NONE`. This must be used in lieu of a raw call to
 /// `mprotect` which is unaware of the specific allocation pattern used
 /// by libsodium.
-///
 pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
     #[cfg(test)]
     { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
@@ -141,12 +129,10 @@ pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
     sodium_mprotect_noaccess(ptr as *mut _) == 0
 }
 
-///
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
 /// memory to `PROT_READ`. This must be used in lieu of a raw call to
 /// `mprotect` which is unaware of the specific allocation pattern used
 /// by libsodium.
-///
 pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
     #[cfg(test)]
     { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
@@ -154,12 +140,10 @@ pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
     sodium_mprotect_readonly(ptr as *mut _) == 0
 }
 
-///
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
 /// memory to `PROT_WRITE`. This must be used in lieu of a raw call to
 /// `mprotect` which is unaware of the specific allocation pattern used
 /// by libsodium.
-///
 pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
     #[cfg(test)]
     { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
@@ -167,13 +151,11 @@ pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
     sodium_mprotect_readwrite(ptr as *mut _) == 0
 }
 
-///
 /// Compares `l` and `r` for equality in constant time, preventing
 /// side-channel attacks when comparing equality of secret data.
-///
 pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
     if l.len() != r.len() {
-        return false
+        return false;
     }
 
     unsafe {
@@ -185,11 +167,9 @@ pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
     }
 }
 
-///
 /// Copies bytes from `src` to `dst` before zeroing the bytes in `src`.
 /// `dst` *must* be at least as long as `src` and *must not* overlap
 /// `src`.
-///
 pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
     proven!(src.len() <= dst.len());
 
@@ -208,16 +188,12 @@ pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
     memzero(src);
 }
 
-///
 /// Fills `bytes` with zeroes.
-///
 pub(crate) fn memzero(bytes: &mut [u8]) {
     unsafe { sodium_memzero(bytes.as_mut_ptr() as *mut _, bytes.len()) }
 }
 
-///
 /// Fills `bytes` with random bytes.
-///
 pub(crate) fn memrandom(bytes: &mut [u8]) {
     unsafe { randombytes_buf(bytes.as_mut_ptr() as *mut _, bytes.len()) }
 }
@@ -258,7 +234,9 @@ mod test_ffi {
     include!(concat!(env!("OUT_DIR"), "/sodium_ctest.rs"));
 
     #[test]
-    fn ctest() { main(); }
+    fn ctest() {
+        main();
+    }
 }
 
 // LCOV_EXCL_STOP
