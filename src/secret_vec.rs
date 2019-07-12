@@ -318,7 +318,7 @@ impl<T: Bytes> Deref for Ref<'_, T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        self.boxed.as_ref()
+        self.boxed.as_slice()
     }
 }
 
@@ -332,7 +332,7 @@ impl<T: Bytes> PartialEq for Ref<'_, T> {
         // but the handler for that performs some extra locks and
         // unlocks which are unnecessary here since we know both sides
         // are already unlocked
-        self.as_ref().constant_eq(rhs.as_ref())
+        self.constant_eq(rhs)
     }
 }
 
@@ -342,7 +342,7 @@ impl<T: Bytes> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
         // but the handler for that performs some extra locks and
         // unlocks which are unnecessary here since we know both sides
         // are already unlocked
-        self.as_ref().constant_eq(rhs.as_ref())
+        self.constant_eq(rhs)
     }
 }
 
@@ -365,13 +365,13 @@ impl<T: Bytes> Deref for RefMut<'_, T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        self.boxed.as_ref()
+        self.boxed.as_slice()
     }
 }
 
 impl<T: Bytes> DerefMut for RefMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.boxed.as_mut()
+        self.boxed.as_mut_slice()
     }
 }
 
@@ -385,7 +385,7 @@ impl<T: Bytes> PartialEq for RefMut<'_, T> {
         // but the handler for that performs some extra locks and
         // unlocks which are unnecessary here since it's already
         // unlocked
-        self.as_ref().constant_eq(rhs.as_ref())
+        self.constant_eq(rhs)
     }
 }
 
@@ -395,7 +395,7 @@ impl<T: Bytes> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
         // but the handler for that performs some extra locks and
         // unlocks which are unnecessary here since we know both sides
         // are already unlocked
-        self.as_ref().constant_eq(rhs.as_ref())
+        self.constant_eq(rhs)
     }
 }
 
