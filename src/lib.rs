@@ -10,7 +10,6 @@
 //! Memory allocations are protected by guard pages before after the
 //! allocation, an underflow canary (to catch underflows before a
 //! guard page), and are zeroed out when freed.
-//!
 
 // TODO: README
 // TODO: examples directory
@@ -64,7 +63,6 @@
 
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 
-///
 /// Macros for ensuring code correctness inspired by [sqlite].
 ///
 /// * `proven` results in an `assert!` in debug builds but is a no-op in
@@ -86,7 +84,6 @@
 ///   performed at least once (and therefore the condition was tested)
 ///
 /// [sqlite]: https://www.sqlite.org/assert.html
-///
 #[cfg(profile = "debug")]
 #[macro_use]
 mod assert {

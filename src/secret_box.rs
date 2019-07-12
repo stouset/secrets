@@ -127,21 +127,18 @@ use std::ops::{Deref, DerefMut};
 /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
 /// [mlock]: http://man7.org/linux/man-pages/man2/mlock.2.html
 /// [refcell]: std::cell::RefCell
-///
 #[derive(Clone, Eq)]
 pub struct SecretBox<T: Bytes> {
     /// The internal protected memory underlying the [`SecretBox`].
     boxed: Box<T>,
 }
 
-///
 /// An immutable wrapper around the internal contents of a
 /// [`SecretBox`]. This wrapper [`Deref`]s to its slice representation
 /// for convenience.
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-///
 #[derive(Eq)]
 pub struct Ref<'a, T: Bytes> {
     /// an imutably-unlocked reference to the protected memory of a
@@ -149,14 +146,12 @@ pub struct Ref<'a, T: Bytes> {
     boxed: &'a Box<T>,
 }
 
-///
 /// A mutable wrapper around the internal contents of a
 /// [`SecretBox`]. This wrapper [`Deref`]s to its slice representation
 /// for convenience.
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-///
 #[derive(Eq)]
 pub struct RefMut<'a, T: Bytes> {
     /// a mutably-unlocked reference to the protected memory of a
@@ -165,7 +160,6 @@ pub struct RefMut<'a, T: Bytes> {
 }
 
 impl<T: Bytes> SecretBox<T> {
-    ///
     /// Instantiates and returns a new `SecretBox`.
     ///
     /// Accepts a callback function that is responsible for initializing
@@ -180,19 +174,20 @@ impl<T: Bytes> SecretBox<T> {
     ///
     /// assert_eq!(*secret.borrow(), 0x20);
     /// ```
-    ///
-    pub fn new<F>(f: F) -> Self where F: FnOnce(&mut T) {
-        Self { boxed: Box::new_one(f) }
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce(&mut T),
+    {
+        Self {
+            boxed: Box::new_one(f),
+        }
     }
 
-    ///
     /// Returns the size in bytes of the [`SecretBox`].
-    ///
     pub fn size(&self) -> usize {
         self.boxed.size()
     }
 
-    ///
     /// Immutably borrows the contents of the [`SecretBox`]. Returns a
     /// wrapper that ensures the underlying memory is
     /// [`mprotect(2)`][mprotect]ed once all borrows exit scope.
@@ -209,12 +204,10 @@ impl<T: Bytes> SecretBox<T> {
     /// assert_eq!(*secret_r2, 127);
     /// assert_eq!(secret_r1, secret_r2);
     /// ```
-    ///
     pub fn borrow(&self) -> Ref<'_, T> {
         Ref::new(&self.boxed)
     }
 
-    ///
     /// Mutably borrows the contents of the [`SecretBox`]. Returns a
     /// wrapper that ensures the underlying memory is
     /// [`mprotect(2)`][mprotect]ed once this borrow exits scope.
@@ -230,43 +223,42 @@ impl<T: Bytes> SecretBox<T> {
     ///
     /// assert_eq!(*secret_w, 0xaa);
     /// ```
-    ///
     pub fn borrow_mut(&mut self) -> RefMut<'_, T> {
         RefMut::new(&mut self.boxed)
     }
 }
 
 impl<T: Bytes + Randomizable> SecretBox<T> {
-    ///
     /// Creates a new [`SecretBox`] filled with cryptographically-random
     /// bytes.
-    ///
     pub fn random() -> Self {
-        Self { boxed: Box::random(1) }
+        Self {
+            boxed: Box::random(1),
+        }
     }
 }
 
 impl<T: Bytes + Zeroable> SecretBox<T> {
-    ///
     /// Creates a new [`SecretBox`] filled with zeroes.
-    ///
     pub fn zero() -> Self {
-        Self { boxed: Box::zero(1) }
+        Self {
+            boxed: Box::zero(1),
+        }
     }
 }
 
 impl<T: Bytes + Zeroable> From<&mut T> for SecretBox<T> {
-    ///
     /// Creates a new [`SecretBox`] from existing, unprotected data, and
     /// immediately zeroes out the memory of the data being moved in.
-    ///
     fn from(data: &mut T) -> Self {
         Self { boxed: data.into() }
     }
 }
 
 impl<T: Bytes> Debug for SecretBox<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        self.boxed.fmt(f)
+    }
 }
 
 impl<T: Bytes + ConstantEq> PartialEq for SecretBox<T> {
@@ -276,20 +268,22 @@ impl<T: Bytes + ConstantEq> PartialEq for SecretBox<T> {
 }
 
 impl<'a, T: Bytes> Ref<'a, T> {
-    ///
     /// Instantiates a new `Ref`.
-    ///
     fn new(boxed: &'a Box<T>) -> Self {
         proven!(boxed.len() == 1,
             "secrets: attempted to take a reference to a box with zero length");
 
-        Self { boxed: boxed.unlock() }
+        Self {
+            boxed: boxed.unlock(),
+        }
     }
 }
 
 impl<T: Bytes> Clone for Ref<'_, T> {
     fn clone(&self) -> Self {
-        Self { boxed: self.boxed.unlock() }
+        Self {
+            boxed: self.boxed.unlock(),
+        }
     }
 }
 
@@ -311,7 +305,9 @@ impl<T: Bytes> Deref for Ref<'_, T> {
 }
 
 impl<T: Bytes> Debug for Ref<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        self.boxed.fmt(f)
+    }
 }
 
 impl<T: Bytes> PartialEq for Ref<'_, T> {
@@ -335,14 +331,14 @@ impl<T: Bytes> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
 }
 
 impl<'a, T: Bytes> RefMut<'a, T> {
-    ///
     /// Instantiates a new RefMut.
-    ///
     fn new(boxed: &'a mut Box<T>) -> Self {
         proven!(boxed.len() == 1,
             "secrets: attempted to take a reference to a box with zero length");
 
-        Self { boxed: boxed.unlock_mut() }
+        Self {
+            boxed: boxed.unlock_mut(),
+        }
     }
 }
 
@@ -373,7 +369,9 @@ impl<T: Bytes> DerefMut for RefMut<'_, T> {
 }
 
 impl<T: Bytes> Debug for RefMut<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        self.boxed.fmt(f)
+    }
 }
 
 impl<T: Bytes> PartialEq for RefMut<'_, T> {

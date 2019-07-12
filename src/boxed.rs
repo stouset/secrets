@@ -5,13 +5,11 @@ use crate::traits::*;
 
 use std::cell::Cell;
 use std::fmt::{self, Debug};
-use std::thread;
 use std::ptr::NonNull;
 use std::slice;
+use std::thread;
 
-///
 /// The page protection applied to the memory underlying a [`Box`].
-///
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Prot {
     /// Any attempt to read, write, or execute this memory will result
@@ -27,7 +25,6 @@ enum Prot {
     ReadWrite,
 }
 
-///
 /// The type used for storing ref counts. Overflowing this type by
 /// borrowing too many times will cause a runtime panic. It seems
 /// implausible that there would be many legitimate use-cases where
@@ -36,10 +33,8 @@ enum Prot {
 /// TODO: Perhaps this could be moved to an associated type on a trait,
 /// such that a user who did need a larger value could provide a
 /// larger replacement.
-///
 type RefCount = u8;
 
-///
 /// NOTE: This implementation is not meant to be exposed directly to
 /// end-users, and user-facing wrappers must be written with care to
 /// ensure they statically enforce the required invariants. These
@@ -49,14 +44,13 @@ type RefCount = u8;
 /// statically.
 ///
 /// TODO: document invariants
-///
 #[derive(Eq)]
 pub(crate) struct Box<T: Bytes> {
     /// the non-null pointer to the underlying protected memory
-    ptr:  NonNull<T>,
+    ptr: NonNull<T>,
 
     /// the number of elements of `T` that can be stored in `ptr`
-    len:  usize,
+    len: usize,
 
     /// the pointer's current protection level
     prot: Cell<Prot>,
@@ -73,7 +67,9 @@ impl<T: Bytes> Box<T> {
     /// will be called with a mutable reference to the element. The
     /// memory will be pre-filled with fixed bytes of arbitrary value.
     pub(crate) fn new_one<F>(init: F) -> Self
-        where F: FnOnce(&mut T) {
+    where
+        F: FnOnce(&mut T),
+    {
         let mut boxed = Self::new_unlocked(1);
 
         // this is safe since we are guaranteed to have a one-length
@@ -84,15 +80,14 @@ impl<T: Bytes> Box<T> {
         boxed
     }
 
-    ///
     /// Instantiates a new [`Box`] that can hold `len` elements of type
     /// `T`. The callback `F` will be used for initialization and will
     /// be called with a mutable reference to a slice containing these
     /// elements. The memory will be pre-filled with fixed bytes of
     /// arbitrary value.
-    ///
     pub(crate) fn new<F>(len: usize, init: F) -> Self
-        where F: FnOnce(&mut [T])
+    where
+        F: FnOnce(&mut [T]),
     {
         let mut boxed = Self::new_unlocked(len);
 
@@ -102,21 +97,16 @@ impl<T: Bytes> Box<T> {
         boxed
     }
 
-    ///
     /// Returns the number of elements in the [`Box`].
-    ///
     pub(crate) fn len(&self) -> usize {
         self.len
     }
 
-    ///
     /// Returns true if the [`Box`] is empty.
-    ///
     pub(crate) fn is_empty(&self) -> bool {
         self.len == 0
     }
 
-    ///
     /// Returns the size in bytes of the data contained in the [`Box`].
     /// This does not include incidental metadata used in the
     /// implementation of [`Box`] itself, only the size of the data
@@ -124,38 +114,32 @@ impl<T: Bytes> Box<T> {
     ///
     /// It is the maximum number of bytes that can be read from the
     /// internal pointer.
-    ///
     pub(crate) fn size(&self) -> usize {
         self.len * T::size()
     }
 
-    ///
     /// Allows the contents of the [`Box`] to be read from. Any call to
     /// this function *must* be balanced with a call to
     /// [`lock`][Box::lock]. Mirroring Rust's borrowing rules, there may
     /// be any number of outstanding immutable unlocks (technically,
     /// limited by the max value of [`RefCount`]) *or* one mutable
     /// unlock.
-    ///
     pub(crate) fn unlock(&self) -> &Self {
         self.retain(Prot::ReadOnly);
         self
     }
 
-    ///
     /// Allows the contents of the [`Box`] to be read from and written
     /// to. Any call to this function *must* be balanced with a call to
     /// [`lock`][Box::lock]. Mirroring Rust's borrowing rules, there may
     /// be any number of outstanding immutable unlocks (technically,
     /// limited by the max value of [`RefCount`]) *or* one mutable
     /// unlock.
-    ///
     pub(crate) fn unlock_mut(&mut self) -> &mut Self {
         self.retain(Prot::ReadWrite);
         self
     }
 
-    ///
     /// Disables all access to the underlying memory. Must only be
     /// called to precisely balance prior calls to [`unlock`][Box::unlock]
     /// and [`unlock_mut`][Box::unlock_mut].
@@ -164,7 +148,6 @@ impl<T: Bytes> Box<T> {
     /// unlocks will result in a runtime panic. Omitting a call to this
     /// method and leaving an outstanding unlock will result in a
     /// runtime panic when this object is dropped.
-    ///
     pub(crate) fn lock(&self) {
         self.release()
     }
@@ -192,7 +175,6 @@ impl<T: Bytes> Box<T> {
 
         self.ptr.as_ref()
     }
-
 
     /// Converts the [`Box`]'s contents into a mutable reference. This
     /// must only happen while it is mutably unlocked, and the slice
@@ -256,7 +238,6 @@ impl<T: Bytes> Box<T> {
     ///
     /// TODO: make `len` a `NonZero` when it's stabilized and remove the
     /// related panic.
-    ///
     fn new_unlocked(len: usize) -> Self {
         tested!(len == 0);
         tested!(std::mem::size_of::<T>() == 0);
@@ -284,10 +265,8 @@ impl<T: Bytes> Box<T> {
         }
     }
 
-    ///
     /// Performs the underlying retain half of the retain/release logic
     /// for monitoring outstanding calls to unlock.
-    ///
     fn retain(&self, prot: Prot) {
         let refs = self.refs.get();
 
@@ -349,11 +328,9 @@ impl<T: Bytes> Box<T> {
         };
     }
 
-    ///
     /// Removes one outsdanding retain, and changes the memory
     /// protection level back to [`Prot::NoAccess`] when the number of
     /// outstanding retains reaches zero.
-    ///
     fn release(&self) {
         // When releasing, we should always have at least one retain
         // outstanding. This is enforced by all users through
@@ -395,32 +372,26 @@ impl<T: Bytes> Box<T> {
         }
     }
 
-    ///
     /// Returns true if the protection level is [`NoAccess`]. Ignores
     /// ref count.
-    ///
     fn is_locked(&self) -> bool {
         self.prot.get() == Prot::NoAccess
     }
 }
 
 impl<T: Bytes + Randomizable> Box<T> {
-    ///
     /// Instantiates a new [`Box`] with crypotgraphically-randomized
     /// contents.
-    ///
     pub(crate) fn random(len: usize) -> Self {
         Self::new(len, Randomizable::randomize)
     }
 }
 
 impl<T: Bytes + Zeroable> Box<T> {
-    ///
     /// Instantiates a new [`Box`] whose backing memory is zeroed.
-    ///
-     pub(crate) fn zero(len: usize) -> Self {
-         Self::new(len, Zeroable::zero)
-     }
+    pub(crate) fn zero(len: usize) -> Self {
+        Self::new(len, Zeroable::zero)
+    }
 }
 
 impl<T: Bytes> Drop for Box<T> {
@@ -492,11 +463,9 @@ impl<T: Bytes + Zeroable> From<&mut [T]> for Box<T> {
     }
 }
 
-unsafe impl<T: Bytes + Send> Send for Box<T> { }
+unsafe impl<T: Bytes + Send> Send for Box<T> {}
 
-///
 /// Immediately changes the page protection level on `ptr` to `prot`.
-///
 fn mprotect<T>(ptr: *const T, prot: Prot) {
     if !match prot {
         Prot::NoAccess  => unsafe { sodium::mprotect_noaccess(ptr)  },
@@ -651,8 +620,8 @@ mod tests {
 
     #[test]
     fn it_can_be_sent_between_threads() {
-        use std::thread;
         use std::sync::mpsc;
+        use std::thread;
 
         let (tx, rx) = mpsc::channel();
 
@@ -726,7 +695,10 @@ mod tests_sigsegv {
     use super::*;
     use std::process;
 
-    fn assert_sigsegv<F>(f: F) where F: FnOnce() {
+    fn assert_sigsegv<F>(f: F)
+    where
+        F: FnOnce(),
+    {
         unsafe {
             let pid      : libc::pid_t = libc::fork();
             let mut stat : libc::c_int = 0;

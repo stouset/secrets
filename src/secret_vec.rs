@@ -4,7 +4,6 @@ use crate::traits::*;
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
-///
 /// A type for protecting secrets allocated on the heap.
 ///
 /// Heap-allocated secrets have distinct security needs from
@@ -127,21 +126,18 @@ use std::ops::{Deref, DerefMut};
 /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
 /// [mlock]: http://man7.org/linux/man-pages/man2/mlock.2.html
 /// [refcell]: std::cell::RefCell
-///
 #[derive(Clone, Eq)]
 pub struct SecretVec<T: Bytes> {
     /// The internal protected memory underlying the [`SecretVec`].
     boxed: Box<T>,
 }
 
-///
 /// An immutable wrapper around the internal contents of a
 /// [`SecretVec`]. This wrapper [`Deref`]s to its slice representation
 /// for convenience.
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-///
 #[derive(Eq)]
 pub struct Ref<'a, T: Bytes> {
     /// an imutably-unlocked reference to the protected memory of a
@@ -149,14 +145,12 @@ pub struct Ref<'a, T: Bytes> {
     boxed: &'a Box<T>,
 }
 
-///
 /// A mutable wrapper around the internal contents of a
 /// [`SecretVec`]. This wrapper [`Deref`]s to its slice representation
 /// for convenience.
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-///
 #[derive(Eq)]
 pub struct RefMut<'a, T: Bytes> {
     /// a mutably-unlocked reference to the protected memory of a
@@ -165,7 +159,6 @@ pub struct RefMut<'a, T: Bytes> {
 }
 
 impl<T: Bytes> SecretVec<T> {
-    ///
     /// Instantiates and returns a new `SecretVec`.
     ///
     /// Accepts a callback function that is responsible for initializing
@@ -183,33 +176,30 @@ impl<T: Bytes> SecretVec<T> {
     ///
     /// assert_eq!(*secret.borrow(), [0x10, 0x20]);
     /// ```
-    ///
-    pub fn new<F>(len: usize, f: F) -> Self where F: FnOnce(&mut [T]) {
-        Self { boxed: Box::new(len, f) }
+    pub fn new<F>(len: usize, f: F) -> Self
+    where
+        F: FnOnce(&mut [T]),
+    {
+        Self {
+            boxed: Box::new(len, f),
+        }
     }
 
-    ///
     /// Returns the number of elements in the [`SecretVec`].
-    ///
     pub fn len(&self) -> usize {
         self.boxed.len()
     }
 
-    ///
     /// Returns true if length of the [`SecretVec`] is zero.
-    ///
     pub fn is_empty(&self) -> bool {
         self.boxed.is_empty()
     }
 
-    ///
     /// Returns the size in bytes of the [`SecretVec`].
-    ///
     pub fn size(&self) -> usize {
         self.boxed.size()
     }
 
-    ///
     /// Immutably borrows the contents of the [`SecretVec`]. Returns a
     /// wrapper that ensures the underlying memory is
     /// [`mprotect(2)`][mprotect]ed once all borrows exit scope.
@@ -226,12 +216,10 @@ impl<T: Bytes> SecretVec<T> {
     /// assert_eq!(secret_r2[1], 2);
     /// assert_eq!(secret_r1, secret_r2);
     /// ```
-    ///
     pub fn borrow(&self) -> Ref<'_, T> {
         Ref::new(&self.boxed)
     }
 
-    ///
     /// Mutably borrows the contents of the [`SecretVec`]. Returns a
     /// wrapper that ensures the underlying memory is
     /// [`mprotect(2)`][mprotect]ed once this borrow exits scope.
@@ -247,44 +235,43 @@ impl<T: Bytes> SecretVec<T> {
     ///
     /// assert_eq!(*secret_w, [0xaa, 0x00]);
     /// ```
-    ///
     pub fn borrow_mut(&mut self) -> RefMut<'_, T> {
         RefMut::new(&mut self.boxed)
     }
 }
 
 impl<T: Bytes + Randomizable> SecretVec<T> {
-    ///
     /// Creates a new [`SecretVec`] with  `len` elements, filled with
     /// cryptographically-random bytes.
-    ///
     pub fn random(len: usize) -> Self {
-        Self { boxed: Box::random(len) }
+        Self {
+            boxed: Box::random(len),
+        }
     }
 }
 
 impl<T: Bytes + Zeroable> SecretVec<T> {
-    ///
     /// Creates a new [`SecretVec`] with  `len` elements, filled with
     /// zeroes.
-    ///
     pub fn zero(len: usize) -> Self {
-        Self { boxed: Box::zero(len) }
+        Self {
+            boxed: Box::zero(len),
+        }
     }
 }
 
 impl<T: Bytes + Zeroable> From<&mut [T]> for SecretVec<T> {
-    ///
     /// Creates a new [`SecretVec`] from existing, unprotected data, and
     /// immediately zeroes out the memory of the data being moved in.
-    ///
     fn from(data: &mut [T]) -> Self {
         Self { boxed: data.into() }
     }
 }
 
 impl<T: Bytes> Debug for SecretVec<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        self.boxed.fmt(f)
+    }
 }
 
 impl<T: Bytes + ConstantEq> PartialEq for SecretVec<T> {
@@ -294,17 +281,19 @@ impl<T: Bytes + ConstantEq> PartialEq for SecretVec<T> {
 }
 
 impl<'a, T: Bytes> Ref<'a, T> {
-    ///
     /// Instantiates a new `Ref`.
-    ///
     fn new(boxed: &'a Box<T>) -> Self {
-        Self { boxed: boxed.unlock() }
+        Self {
+            boxed: boxed.unlock(),
+        }
     }
 }
 
 impl<T: Bytes> Clone for Ref<'_, T> {
     fn clone(&self) -> Self {
-        Self { boxed: self.boxed.unlock() }
+        Self {
+            boxed: self.boxed.unlock(),
+        }
     }
 }
 
@@ -323,7 +312,9 @@ impl<T: Bytes> Deref for Ref<'_, T> {
 }
 
 impl<T: Bytes> Debug for Ref<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        self.boxed.fmt(f)
+    }
 }
 
 impl<T: Bytes> PartialEq for Ref<'_, T> {
@@ -347,11 +338,11 @@ impl<T: Bytes> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
 }
 
 impl<'a, T: Bytes> RefMut<'a, T> {
-    ///
     /// Instantiates a new RefMut.
-    ///
     fn new(boxed: &'a mut Box<T>) -> Self {
-        Self { boxed: boxed.unlock_mut() }
+        Self {
+            boxed: boxed.unlock_mut(),
+        }
     }
 }
 
@@ -376,7 +367,9 @@ impl<T: Bytes> DerefMut for RefMut<'_, T> {
 }
 
 impl<T: Bytes> Debug for RefMut<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result { self.boxed.fmt(f) }
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        self.boxed.fmt(f)
+    }
 }
 
 impl<T: Bytes> PartialEq for RefMut<'_, T> {

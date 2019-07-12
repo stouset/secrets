@@ -1,6 +1,4 @@
-//!
 //! Marker traits to allow types to be contained as secrets.
-//!
 
 #![allow(unsafe_code)]
 
@@ -23,7 +21,7 @@ mod randomizable;
 /// zeroed.
 mod zeroable;
 
-pub use bytes::{Bytes, AsContiguousBytes};
+pub use bytes::{AsContiguousBytes, Bytes};
 pub use constant_eq::ConstantEq;
 pub use randomizable::Randomizable;
 pub use zeroable::Zeroable;
@@ -44,7 +42,7 @@ macro_rules! impls {
     )*};
 }
 
-impls!{
+impls! {
     (), // maybe not super useful, but good as a smoke test
 
     u8, u16, u32, u64, u128; (
