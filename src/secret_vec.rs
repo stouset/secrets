@@ -4,7 +4,7 @@ use crate::traits::*;
 use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 
-/// A type for protecting secrets allocated on the heap.
+/// A type for protecting variable-length secrets allocated on the heap.
 ///
 /// Heap-allocated secrets have distinct security needs from
 /// stack-allocated ones. They provide the following guarantees:
