@@ -68,6 +68,22 @@ pub(crate) struct Box<T: Bytes> {
 }
 
 impl<T: Bytes> Box<T> {
+    /// Instantiates a new [`Box`] that can hold exactly one element of
+    /// type `T`. The callback `F` will be used for initialization and
+    /// will be called with a mutable reference to the element. The
+    /// memory will be pre-filled with fixed bytes of arbitrary value.
+    pub(crate) fn new_one<F>(init: F) -> Self
+        where F: FnOnce(&mut T) {
+        let mut boxed = Self::new_unlocked(1);
+
+        // this is safe since we are guaranteed to have a one-length
+        // pointer
+        init(unsafe { boxed.ptr.as_mut() });
+
+        boxed.lock();
+        boxed
+    }
+
     ///
     /// Instantiates a new [`Box`] that can hold `len` elements of type
     /// `T`. The callback `F` will be used for initialization and will
@@ -78,30 +94,7 @@ impl<T: Bytes> Box<T> {
     pub(crate) fn new<F>(len: usize, init: F) -> Self
         where F: FnOnce(&mut [T])
     {
-        tested!(len == 0);
-        tested!(std::mem::size_of::<T>() == 0);
-
-        if !sodium::init() {
-            panic!("secrets: failed to initialize libsodium");
-        }
-
-        // `sodium::allocarray` returns a memory location that already
-        // allows r/w access
-        let ptr = NonNull::new(unsafe { sodium::allocarray::<T>(len) })
-            .expect("secrets: failed to allocate memory");
-
-        // NOTE: We technically could save a little extra work here by
-        // initializing the struct with [`Prot::NoAccess`] and a zero
-        // refcount, and manually calling `mprotect` when finished with
-        // initialization. However, the `as_mut()` call performs sanity
-        // checks that ensure it's [`Prot::ReadWrite`] so it's easier to
-        // just send everything through the "normal" code paths.
-        let mut boxed = Self {
-            ptr,
-            len,
-            prot: Cell::new(Prot::ReadWrite),
-            refs: Cell::new(1),
-        };
+        let mut boxed = Self::new_unlocked(len);
 
         init(boxed.as_mut_slice());
 
@@ -176,17 +169,68 @@ impl<T: Bytes> Box<T> {
         self.release()
     }
 
+    /// Converts the [`Box`]'s contents into a reference. This must only
+    /// happen while it is unlocked, and the reference must go out of
+    /// scope before it is locked.
+    pub(crate) unsafe fn as_ref(&self) -> &T {
+        // NOTE: after some consideration, I've decided that this method
+        // and its as_mut() sister *are not* safe.
+        //
+        // Speficially, if `len` is 0 (which we have "proven" today, but
+        // could accidentally change in a future update), this will
+        // attempt to take a reference to a zero-length pointer. We go
+        // to extensive lengths to test this, but it's best to mark this
+        // as unsafe since it's possible for an unwitting client of this
+        // API to make a mistake. We could use the `always!` macro, but
+        // there's no possibility of recovery in this situation, so we
+        // put the real onus on the caller.
+        proven!(self.len > 0,
+            "secrets: attempted to take a reference to a zero-length pointer");
+
+        proven!(self.prot.get() != Prot::NoAccess,
+            "secrets: may not call Box::as_ref while locked");
+
+        self.ptr.as_ref()
+    }
+
+
+    /// Converts the [`Box`]'s contents into a mutable reference. This
+    /// must only happen while it is mutably unlocked, and the slice
+    /// must go out of scope before it is locked.
+    pub(crate) unsafe fn as_mut(&mut self) -> &mut T {
+        proven!(self.len > 0,
+            "secrets: attempted to take a reference to a zero-length pointer");
+
+        proven!(self.prot.get() == Prot::ReadWrite,
+            "secrets: may not call Box::as_mut unless mutably unlocked");
+
+        self.ptr.as_mut()
+    }
+
     /// Converts the [`Box`]'s contents into a slice. This must only
     /// happen while it is unlocked, and the slice must go out of scope
     /// before it is locked.
     pub(crate) fn as_slice(&self) -> &[T] {
+        // NOTE: after some consideration, I've decided that this method
+        // and its as_mut_slice() sister *are* safe.
+        //
+        // Using the retuned ref might cause a SIGSEGV, but this is not
+        // UB (in fact, it's explicitly defined behavior!), cannot cause
+        // a data race, cannot produce an invalid primitive, nor can it
+        // break any other guarantee of "safe Rust". Just a SIGSEGV.
+        //
+        // However, as currently used by wrappers in this crate, these
+        // methods are *never* called on unlocked data. Doing so would
+        // be indicative of a bug, so we want to detect this during
+        // development. If it happens in release mode, it's not
+        // explicitly unsafe so we don't need to enable this check.
         proven!(self.prot.get() != Prot::NoAccess,
             "secrets: may not call Box::as_slice while locked");
 
         unsafe {
             slice::from_raw_parts(
                 self.ptr.as_ptr(),
-                self.len
+                self.len,
             )
         }
     }
@@ -201,8 +245,42 @@ impl<T: Bytes> Box<T> {
         unsafe {
             slice::from_raw_parts_mut(
                 self.ptr.as_ptr(),
-                self.len
+                self.len,
             )
+        }
+    }
+
+    /// Instantiates a new [`Box`] that can hold `len` elements of type
+    /// `T`. This [`Box`] will be unlocked and *must* be locked before
+    /// it is dropped.
+    ///
+    /// TODO: make `len` a `NonZero` when it's stabilized and remove the
+    /// related panic.
+    ///
+    fn new_unlocked(len: usize) -> Self {
+        tested!(len == 0);
+        tested!(std::mem::size_of::<T>() == 0);
+
+        if !sodium::init() {
+            panic!("secrets: failed to initialize libsodium");
+        }
+
+        // `sodium::allocarray` returns a memory location that already
+        // allows r/w access
+        let ptr = NonNull::new(unsafe { sodium::allocarray::<T>(len) })
+            .expect("secrets: failed to allocate memory");
+
+        // NOTE: We technically could save a little extra work here by
+        // initializing the struct with [`Prot::NoAccess`] and a zero
+        // refcount, and manually calling `mprotect` when finished with
+        // initialization. However, the `as_mut()` call performs sanity
+        // checks that ensure it's [`Prot::ReadWrite`] so it's easier to
+        // just send everything through the "normal" code paths.
+        Self {
+            ptr,
+            len,
+            prot: Cell::new(Prot::ReadWrite),
+            refs: Cell::new(1),
         }
     }
 
@@ -397,6 +475,13 @@ impl<T: Bytes + ConstantEq> PartialEq for Box<T> {
         other.lock();
 
         ret
+    }
+}
+
+impl<T: Bytes + Zeroable> From<&mut T> for Box<T> {
+    fn from(data: &mut T) -> Self {
+        // this is safe since the secret and data can never overlap
+        Self::new_one(|s| unsafe { data.transfer(s) })
     }
 }
 
@@ -705,8 +790,15 @@ mod tests_sigsegv {
 }
 
 #[cfg(all(test, profile = "debug"))]
-mod tests_must_checks {
+mod tests_proven_statements {
     use super::*;
+
+    #[test]
+    #[should_panic(expected = "secrets: attempted to take a reference to a zero-length pointer")]
+    fn it_doesnt_allow_referencing_zero_length() {
+        let boxed = Box::<u8>::new_unlocked(0);
+        let _     = unsafe { boxed.as_ref() };
+    }
 
     #[test]
     #[should_panic(expected = "secrets: cannot unlock mutably more than once")]
@@ -751,6 +843,26 @@ mod tests_must_checks {
     #[should_panic(expected = "secrets: retains exceeded releases")]
     fn it_doesnt_allow_outstanding_writers() {
         let _ = Box::<u8>::zero(1).unlock_mut();
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: may not call Box::as_ref while locked")]
+    fn it_doesnt_allow_as_ref_while_locked() {
+        let _ = unsafe { Box::<u8>::zero(1).as_ref() };
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: may not call Box::as_mut unless mutably unlocked")]
+    fn it_doesnt_allow_as_mut_while_locked() {
+        let _ = unsafe { Box::<u8>::zero(1).as_mut() } ;
+    }
+
+    #[test]
+    #[should_panic(expected = "secrets: may not call Box::as_mut unless mutably unlocked")]
+    fn it_doesnt_allow_as_mut_while_readonly() {
+        let mut boxed = Box::<u8>::zero(1);
+        let _ = boxed.unlock();
+        let _ = unsafe { boxed.as_mut() };
     }
 
     #[test]
