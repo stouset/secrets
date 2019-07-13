@@ -64,37 +64,53 @@
 
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 
-///
 /// Macros for ensuring code correctness inspired by [sqlite].
 ///
-/// * `proven` results in an `assert!` in debug builds but is a no-op in
-///   coverage and release builds, since we have extraordinarily high
-///   guarantees that it is impossible for this condition to happen in
-///   released code
-/// * `always` is intended to be used in a conditional expression, and
-///   must have the negative case handled in the event that we're wrong;
-///   in debug builds it performs an `assert!`, in coverage builds it
-///   expands to `true`, and in production builds it evaluates to the
-///   condition itself
-/// * `never` is the logical opposite of `always`
-/// * `tested` ensures, for code-coverage purposes, that we have tests
-///   for which the condition provided evaluates to `true`, this allows
-///   us to ensure at the source location itself that known edge cases
-///   are considered and tested; in debug and release builds it's a
-///   no-op, and in coverage builds it does some work that can't be
-///   optimized away, so the coverage tool can ensure that that work is
-///   performed at least once (and therefore the condition was tested)
-///
 /// [sqlite]: https://www.sqlite.org/assert.html
-///
 #[cfg(profile = "debug")]
 #[macro_use]
 mod assert {
     #![allow(unused_macros)]
-    macro_rules! proven { ($($arg:tt)*) => { assert!($($arg)*) } }
-    macro_rules! always { ($cond:expr)  => { { assert!($cond);  true } } }
-    macro_rules! never  { ($cond:expr)  => { { assert!(!$cond); true } } }
-    macro_rules! tested { ($cond:expr)  => () }
+
+    /// Results in an `assert!` in debug builds but is a no-op in
+    /// coverage and release builds, since we have extraordinarily high
+    /// guarantees that it is impossible for this condition to happen in
+    /// released code.
+    macro_rules! proven {
+        ($($arg:tt)*) => {
+            assert!($($arg)*)
+        }
+    }
+
+    /// This is intended to be used in a conditional expression, and
+    /// must have the negative case handled in the event that we're wrong;
+    /// in debug builds it performs an `assert!`, in coverage builds it
+    /// expands to `true`, and in production builds it evaluates to the
+    /// condition itself.
+    macro_rules! always {
+        ($cond:expr) => { {
+            assert!($cond); true
+        } }
+    }
+
+    /// The logical opposite of `always`
+    macro_rules! never {
+        ($cond:expr) => { {
+            assert!(!$cond); true
+        } }
+    }
+
+    /// Ensures, for code-coverage purposes, that we have tests for
+    /// which the condition provided evaluates to `true`, this allows
+    /// us to ensure at the source location itself that known edge cases
+    /// are considered and tested; in debug and release builds it's a
+    /// no-op, and in coverage builds it does some work that can't be
+    /// optimized away, so the coverage tool can ensure that that work
+    /// is performed at least once (and therefore the condition was
+    /// tested).
+    macro_rules! tested {
+        ($cond:expr)  => ()
+    }
 }
 
 /// See above.
