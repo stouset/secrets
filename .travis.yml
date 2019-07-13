@@ -76,7 +76,7 @@ matrix:
 
       script:
         - cargo doc --no-deps
-        - cargo doc-upload
+        - cargo doc-upload --branch master
 
     - name: coverage
       rust: stable
