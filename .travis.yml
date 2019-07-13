@@ -32,6 +32,7 @@ addons:
 
 env:
   global:
+    - secure: "R0dzAI0lbNRFChOXNx56tLsGpaeY+hbn5kK3RG/E+CeKn4LmHYbCPjHLcwYgjFTxStEfaihq8Y/ZWezqwvsG9Y4nqFnS636E0yc9HRx8hkcRbVB1a4Bk4j+2uLYs3/OD3iDXNkp8vTrfWRvYu4O1HhBY3fAv5aMJnREMcNbTGeA="
     - CARGO_TERM_VERBOSE=true
     - RUSTFLAGS="-A unknown-lints -D warnings"
   matrix:
@@ -60,6 +61,23 @@ matrix:
 
   # TODO: generate and upload docs
   include:
+    - name: docs
+      rust: stable
+      os: linux
+      dist: xenial
+
+      if: branch = master
+
+      before_script:
+        - rustup update
+        - cargo install cargo-update || echo "cargo-update already installed"
+        - cargo install cargo-travis || echo "cargo-travis already installed"
+        - cargo install-update -a
+
+      script:
+        - cargo doc --no-deps
+        - cargo doc-upload
+
     - name: coverage
       rust: stable
       os: linux
