@@ -95,11 +95,22 @@ pub struct RefMut<'a, T: ConstantEq> {
 
 impl<T: Bytes> Secret<T> {
     /// Creates a new [`Secret`] and invokes the provided callback with
-    /// a wrapper to the protected memory.
+    /// a wrapper to the protected memory. This memory will be filled
+    /// with a well-defined, arbitrary byte pattern, and should be
+    /// initialized to something meaningful before actual use.
+    ///
+    /// ```
+    /// # use secrets::Secret;
+    /// use std::fs::File;
+    /// use std::io::prelude::*;
+    ///
+    /// Secret::<[u8; 32]>::new(|mut s| {
+    ///     File::open("/dev/urandom")?.read_exact(&mut s[..])
+    /// });
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
-    pub fn new<F>(f: F)
+    pub fn new<F, U>(f: F) -> U
     where
-        F: FnOnce(RefMut<'_, T>),
+        F: FnOnce(RefMut<'_, T>) -> U,
     {
         tested!(std::mem::size_of::<T>() == 0);
 
@@ -111,7 +122,7 @@ impl<T: Bytes> Secret<T> {
             panic!("secrets: unable to mlock memory for a Secret");
         };
 
-        f(RefMut::new(&mut secret.data));
+        f(RefMut::new(&mut secret.data))
     }
 }
 
