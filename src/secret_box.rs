@@ -45,7 +45,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// These [`borrow`](SecretBox::borrow) and
 /// [`borrow_mut`](SecretBox::borrow_mut) calls return a wrapper around
-/// the interior that ensures the memory is re-[`mprotect`](mprotect)ed
+/// the interior that ensures the memory is re-[`mprotect`][mprotect]ed
 /// when all active borrows leave scope. These wrappers [`Deref`] to the
 /// underlying value so you can to work with them as if they were the
 /// underlying type, with a few excepitons: they have specific
@@ -204,6 +204,8 @@ impl<T: Bytes> SecretBox<T> {
     /// assert_eq!(*secret_r2, 127);
     /// assert_eq!(secret_r1, secret_r2);
     /// ```
+    ///
+    /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
     pub fn borrow(&self) -> Ref<'_, T> {
         Ref::new(&self.boxed)
     }
@@ -223,6 +225,8 @@ impl<T: Bytes> SecretBox<T> {
     ///
     /// assert_eq!(*secret_w, 0xaa);
     /// ```
+    ///
+    /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
     pub fn borrow_mut(&mut self) -> RefMut<'_, T> {
         RefMut::new(&mut self.boxed)
     }
