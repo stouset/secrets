@@ -66,7 +66,8 @@ matrix:
       os: linux
       dist: xenial
 
-      if: branch = master
+      env:
+        - RUST_BACKTRACE=1
 
       before_script:
         - rustup update
