@@ -10,7 +10,6 @@
 //! Memory allocations are protected by guard pages before after the
 //! allocation, an underflow canary (to catch underflows before a
 //! guard page), and are zeroed out when freed.
-//!
 
 // TODO: README
 // TODO: examples directory

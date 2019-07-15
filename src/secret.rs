@@ -9,7 +9,6 @@ use std::fmt::{Debug, Formatter, Result};
 use std::ops::{Deref, DerefMut};
 use std::thread;
 
-///
 /// A type for protecting secrets allocated on the stack.
 ///
 /// Stack-allocated secrets have distinct security needs from
@@ -79,18 +78,15 @@ use std::thread;
 /// ```
 ///
 /// [mlock]: http://man7.org/linux/man-pages/man2/mlock.2.html
-///
 pub struct Secret<T: Bytes> {
     /// The internal protected memory for the [`Secret`].
     data: T,
 }
 
-///
 /// A mutable [`Deref`]-wrapper around a [`Secret`]'s internal
 /// contents that intercepts calls like [`Clone::clone`] and
 /// [`Debug::fmt`] that are likely to result in the inadvertent
 /// disclosure of secret data.
-///
 #[derive(Eq)]
 pub struct RefMut<'a, T: ConstantEq> {
     /// a reference to the underlying secret data that will be derefed
@@ -98,16 +94,17 @@ pub struct RefMut<'a, T: ConstantEq> {
 }
 
 impl<T: Bytes> Secret<T> {
-    ///
     /// Creates a new [`Secret`] and invokes the provided callback with
     /// a wrapper to the protected memory.
-    ///
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
-    pub fn new<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
+    pub fn new<F>(f: F)
+    where
+        F: FnOnce(RefMut<'_, T>),
+    {
         tested!(std::mem::size_of::<T>() == 0);
 
         let mut secret = Self {
-            data: T::uninitialized()
+            data: T::uninitialized(),
         };
 
         if unsafe { !sodium::mlock(&secret.data) } {
@@ -119,31 +116,43 @@ impl<T: Bytes> Secret<T> {
 }
 
 impl<T: Bytes + Zeroable> Secret<T> {
-    ///
     /// Creates a new [`Secret`] filled with zeroed bytes and invokes the
     /// callback with a wrapper to the protected memory.
-    ///
-    pub fn zero<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
-        Self::new(|mut s| { s.zero(); f(s) })
+    pub fn zero<F>(f: F)
+    where
+        F: FnOnce(RefMut<'_, T>),
+    {
+        Self::new(|mut s| {
+            s.zero();
+            f(s)
+        })
     }
 
-    ///
     /// Creates a new [`Secret`] from existing, unprotected data, and
     /// immediately zeroes out the memory of the data being moved in.
     /// Invokes the callback with a wrapper to the protected memory.
-    ///
-    pub fn from<F>(v: &mut T, f: F) where F: FnOnce(RefMut<'_, T>) {
-        Self::new(|mut s| { unsafe { v.transfer(s.borrow_mut()) }; f(s) })
+    pub fn from<F>(v: &mut T, f: F)
+    where
+        F: FnOnce(RefMut<'_, T>),
+    {
+        Self::new(|mut s| {
+            unsafe { v.transfer(s.borrow_mut()) };
+            f(s)
+        })
     }
 }
 
 impl<T: Bytes + Randomizable> Secret<T> {
-    ///
     /// Creates a new [`Secret`] filled with random bytes and invokes the
     /// callback with a wrapper to the protected memory.
-    ///
-    pub fn random<F>(f: F) where F: FnOnce(RefMut<'_, T>) {
-        Self::new(|mut s| { s.randomize(); f(s) })
+    pub fn random<F>(f: F)
+    where
+        F: FnOnce(RefMut<'_, T>),
+    {
+        Self::new(|mut s| {
+            s.randomize();
+            f(s)
+        })
     }
 }
 
@@ -160,9 +169,7 @@ impl<T: Bytes> Drop for Secret<T> {
 }
 
 impl<'a, T: ConstantEq> RefMut<'a, T> {
-    ///
     /// Instantiates a new `RefMut`.
-    ///
     pub(crate) fn new(data: &'a mut T) -> Self {
         Self { data }
     }
@@ -256,7 +263,7 @@ mod tests {
     fn it_zeroes_values_when_initializing_from() {
         let mut value = 5_u8;
 
-        Secret::from(&mut value, |_| { });
+        Secret::from(&mut value, |_| {});
 
         assert_eq!(value, 0);
     }
@@ -293,7 +300,9 @@ mod tests {
     #[should_panic(expected = "secrets: a Secret may not be cloned")]
     fn it_panics_when_cloned() {
         #[cfg_attr(feature = "cargo-clippy", allow(clippy::redundant_clone))]
-        Secret::<u16>::zero(|s| { let _ = s.clone(); });
+        Secret::<u16>::zero(|s| {
+            let _ = s.clone();
+        });
     }
 
     #[test]
