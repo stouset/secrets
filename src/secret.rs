@@ -88,7 +88,7 @@ pub struct Secret<T: Bytes> {
 /// [`Debug::fmt`] that are likely to result in the inadvertent
 /// disclosure of secret data.
 #[derive(Eq)]
-pub struct RefMut<'a, T: ConstantEq> {
+pub struct RefMut<'a, T: Bytes> {
     /// a reference to the underlying secret data that will be derefed
     data: &'a mut T,
 }
@@ -168,7 +168,7 @@ impl<T: Bytes> Drop for Secret<T> {
     }
 }
 
-impl<'a, T: ConstantEq> RefMut<'a, T> {
+impl<'a, T: Bytes> RefMut<'a, T> {
     /// Instantiates a new `RefMut`.
     pub(crate) fn new(data: &'a mut T) -> Self {
         Self { data }
@@ -181,26 +181,26 @@ impl<T: Bytes + Clone> Clone for RefMut<'_, T> {
     }
 }
 
-impl<T: ConstantEq> Debug for RefMut<'_, T> {
+impl<T: Bytes> Debug for RefMut<'_, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{{ {} bytes redacted }}", self.data.size())
     }
 }
 
-impl<T: ConstantEq> Deref for RefMut<'_, T> {
+impl<T: Bytes> Deref for RefMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
         self.data
     }
 }
-impl<T: ConstantEq> DerefMut for RefMut<'_, T> {
+impl<T: Bytes> DerefMut for RefMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.data
     }
 }
 
-impl<T: ConstantEq> PartialEq for RefMut<'_, T> {
+impl<T: Bytes> PartialEq for RefMut<'_, T> {
     fn eq(&self, rhs: &Self) -> bool {
         self.data.constant_eq(rhs.data)
     }
