@@ -95,11 +95,23 @@ pub struct RefMut<'a, T: Bytes> {
 
 impl<T: Bytes> Secret<T> {
     /// Creates a new [`Secret`] and invokes the provided callback with
-    /// a wrapper to the protected memory.
+    /// a wrapper to the protected memory. This memory will be filled
+    /// with a well-defined, arbitrary byte pattern, and should be
+    /// initialized to something meaningful before actual use.
+    ///
+    /// ```
+    /// # use secrets::Secret;
+    /// use std::fs::File;
+    /// use std::io::prelude::*;
+    ///
+    /// Secret::<[u8; 32]>::new(|mut s| {
+    ///     File::open("/dev/urandom")?.read_exact(&mut s[..])
+    /// });
+    /// ```
     #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
-    pub fn new<F>(f: F)
+    pub fn new<F, U>(f: F) -> U
     where
-        F: FnOnce(RefMut<'_, T>),
+        F: FnOnce(RefMut<'_, T>) -> U,
     {
         tested!(std::mem::size_of::<T>() == 0);
 
@@ -111,16 +123,23 @@ impl<T: Bytes> Secret<T> {
             panic!("secrets: unable to mlock memory for a Secret");
         };
 
-        f(RefMut::new(&mut secret.data));
+        f(RefMut::new(&mut secret.data))
     }
 }
 
 impl<T: Bytes + Zeroable> Secret<T> {
     /// Creates a new [`Secret`] filled with zeroed bytes and invokes the
     /// callback with a wrapper to the protected memory.
-    pub fn zero<F>(f: F)
+    ///
+    /// ```
+    /// # use secrets::Secret;
+    /// Secret::<u8>::zero(|s| {
+    ///     assert_eq!(*s, 0);
+    /// });
+    /// ```
+    pub fn zero<F, U>(f: F) -> U
     where
-        F: FnOnce(RefMut<'_, T>),
+        F: FnOnce(RefMut<'_, T>) -> U,
     {
         Self::new(|mut s| {
             s.zero();
@@ -131,9 +150,20 @@ impl<T: Bytes + Zeroable> Secret<T> {
     /// Creates a new [`Secret`] from existing, unprotected data, and
     /// immediately zeroes out the memory of the data being moved in.
     /// Invokes the callback with a wrapper to the protected memory.
-    pub fn from<F>(v: &mut T, f: F)
+    ///
+    /// ```
+    /// # use secrets::Secret;
+    /// let mut bytes : [u32; 4] = [1, 2, 3, 4];
+    ///
+    /// Secret::from(&mut bytes, |s| {
+    ///     assert_eq!(*s, [1, 2, 3, 4]);
+    /// });
+    ///
+    /// assert_eq!(bytes, [0, 0, 0, 0]);
+    /// ```
+    pub fn from<F, U>(v: &mut T, f: F) -> U
     where
-        F: FnOnce(RefMut<'_, T>),
+        F: FnOnce(RefMut<'_, T>) -> U,
     {
         Self::new(|mut s| {
             unsafe { v.transfer(s.borrow_mut()) };
@@ -143,11 +173,18 @@ impl<T: Bytes + Zeroable> Secret<T> {
 }
 
 impl<T: Bytes + Randomizable> Secret<T> {
-    /// Creates a new [`Secret`] filled with random bytes and invokes the
-    /// callback with a wrapper to the protected memory.
-    pub fn random<F>(f: F)
+    /// Creates a new [`Secret`] filled with random bytes and invokes
+    /// the callback with a wrapper to the protected memory.
+    ///
+    /// ```
+    /// # use secrets::Secret;
+    /// Secret::<u128>::random(|s| {
+    ///     // s is filled with random bytes
+    /// })
+    /// ```
+    pub fn random<F, U>(f: F) -> U
     where
-        F: FnOnce(RefMut<'_, T>),
+        F: FnOnce(RefMut<'_, T>) -> U,
     {
         Self::new(|mut s| {
             s.randomize();
@@ -157,6 +194,8 @@ impl<T: Bytes + Randomizable> Secret<T> {
 }
 
 impl<T: Bytes> Drop for Secret<T> {
+    /// Ensures that the [`Secret`]'s underlying memory is `munlock`ed
+    /// and zeroed when it leaves scope.
     fn drop(&mut self) {
         if unsafe { !sodium::munlock(&self.data) } {
             // [`Drop::drop`] is called during stack unwinding, so we
