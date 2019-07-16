@@ -77,7 +77,7 @@ matrix:
 
       script:
         - cargo doc --no-deps
-        - cargo doc-upload --branch master
+        - cargo doc-upload --path "${TRAVIS_BRANCH}"
 
     - name: coverage
       rust: stable
