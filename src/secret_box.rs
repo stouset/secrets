@@ -275,7 +275,7 @@ impl<'a, T: Bytes> Ref<'a, T> {
     /// Instantiates a new `Ref`.
     fn new(boxed: &'a Box<T>) -> Self {
         proven!(boxed.len() == 1,
-            "secrets: attempted to take a reference to a box with zero length");
+            "secrets: attempted to dereference a box with zero length");
 
         Self {
             boxed: boxed.unlock(),
@@ -301,10 +301,7 @@ impl<T: Bytes> Deref for Ref<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        // this is explicitly safe since the allocated box has nonzero
-        // length
-        #![allow(unsafe_code)]
-        unsafe { self.boxed.as_ref() }
+        self.boxed.as_ref()
     }
 }
 
@@ -338,7 +335,7 @@ impl<'a, T: Bytes> RefMut<'a, T> {
     /// Instantiates a new RefMut.
     fn new(boxed: &'a mut Box<T>) -> Self {
         proven!(boxed.len() == 1,
-            "secrets: attempted to take a reference to a box with zero length");
+            "secrets: attempted to dereference a box with zero length");
 
         Self {
             boxed: boxed.unlock_mut(),
@@ -356,19 +353,13 @@ impl<T: Bytes> Deref for RefMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        // this is explicitly safe since the allocated box has nonzero
-        // length
-        #![allow(unsafe_code)]
-        unsafe { self.boxed.as_ref() }
+        self.boxed.as_ref()
     }
 }
 
 impl<T: Bytes> DerefMut for RefMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        // this is explicitly safe since the allocated box has nonzero
-        // length
-        #![allow(unsafe_code)]
-        unsafe { self.boxed.as_mut() }
+        self.boxed.as_mut()
     }
 }
 
@@ -507,17 +498,17 @@ mod tests_proven_statements {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "secrets: attempted to take a reference to a zero-length pointer")]
+    #[should_panic(expected = "secrets: attempted to dereference a zero-length pointer")]
     fn it_doesnt_allow_borrowing_zero_length() {
         let boxed = Box::<u8>::zero(0);
-        let _     = unsafe { boxed.as_ref() };
+        let _     = boxed.as_ref();
     }
 
     #[test]
-    #[should_panic(expected = "secrets: attempted to take a reference to a zero-length pointer")]
+    #[should_panic(expected = "secrets: attempted to dereference a zero-length pointer")]
     fn it_doesnt_allow_mutably_borrowing_zero_length() {
         let mut boxed = Box::<u8>::zero(0);
-        let     _     = unsafe { boxed.as_mut() };
+        let     _     = boxed.as_mut();
     }
 }
 
