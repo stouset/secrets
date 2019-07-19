@@ -155,38 +155,39 @@ impl<T: Bytes> Box<T> {
     /// Converts the [`Box`]'s contents into a reference. This must only
     /// happen while it is unlocked, and the reference must go out of
     /// scope before it is locked.
-    pub(crate) unsafe fn as_ref(&self) -> &T {
-        // NOTE: after some consideration, I've decided that this method
-        // and its as_mut() sister *are not* safe.
-        //
-        // Speficially, if `len` is 0 (which we have "proven" today, but
-        // could accidentally change in a future update), this will
-        // attempt to take a reference to a zero-length pointer. We go
-        // to extensive lengths to test this, but it's best to mark this
-        // as unsafe since it's possible for an unwitting client of this
-        // API to make a mistake. We could use the `always!` macro, but
-        // there's no possibility of recovery in this situation, so we
-        // put the real onus on the caller.
-        proven!(self.len > 0,
-            "secrets: attempted to take a reference to a zero-length pointer");
+    ///
+    /// Panics if `len == 0`, in which case it would be unsafe to
+    /// dereference the internal pointer.
+    pub(crate) fn as_ref(&self) -> &T {
+        // we use never! here to ensure that panics happen in both debug
+        // and release builds since it would be a violation of memory-
+        // safety if a zero-length dereference happens
+        never!(self.is_empty(),
+            "secrets: attempted to dereference a zero-length pointer");
 
         proven!(self.prot.get() != Prot::NoAccess,
             "secrets: may not call Box::as_ref while locked");
 
-        self.ptr.as_ref()
+        unsafe { self.ptr.as_ref() }
     }
 
     /// Converts the [`Box`]'s contents into a mutable reference. This
     /// must only happen while it is mutably unlocked, and the slice
     /// must go out of scope before it is locked.
-    pub(crate) unsafe fn as_mut(&mut self) -> &mut T {
-        proven!(self.len > 0,
-            "secrets: attempted to take a reference to a zero-length pointer");
+    ///
+    /// Panics if `len == 0`, in which case it would be unsafe to
+    /// dereference the internal pointer.
+    pub(crate) fn as_mut(&mut self) -> &mut T {
+        // we use never! here to ensure that panics happen in both debug
+        // and release builds since it would be a violation of memory-
+        // safety if a zero-length dereference happens
+        never!(self.is_empty(),
+            "secrets: attempted to dereference a zero-length pointer");
 
         proven!(self.prot.get() == Prot::ReadWrite,
             "secrets: may not call Box::as_mut unless mutably unlocked");
 
-        self.ptr.as_mut()
+        unsafe { self.ptr.as_mut() }
     }
 
     /// Converts the [`Box`]'s contents into a slice. This must only
@@ -766,10 +767,10 @@ mod tests_proven_statements {
     use super::*;
 
     #[test]
-    #[should_panic(expected = "secrets: attempted to take a reference to a zero-length pointer")]
+    #[should_panic(expected = "secrets: attempted to dereference a zero-length pointer")]
     fn it_doesnt_allow_referencing_zero_length() {
         let boxed = Box::<u8>::new_unlocked(0);
-        let _     = unsafe { boxed.as_ref() };
+        let _     = boxed.as_ref();
     }
 
     #[test]
@@ -820,13 +821,13 @@ mod tests_proven_statements {
     #[test]
     #[should_panic(expected = "secrets: may not call Box::as_ref while locked")]
     fn it_doesnt_allow_as_ref_while_locked() {
-        let _ = unsafe { Box::<u8>::zero(1).as_ref() };
+        let _ = Box::<u8>::zero(1).as_ref();
     }
 
     #[test]
     #[should_panic(expected = "secrets: may not call Box::as_mut unless mutably unlocked")]
     fn it_doesnt_allow_as_mut_while_locked() {
-        let _ = unsafe { Box::<u8>::zero(1).as_mut() } ;
+        let _ = Box::<u8>::zero(1).as_mut();
     }
 
     #[test]
@@ -834,7 +835,7 @@ mod tests_proven_statements {
     fn it_doesnt_allow_as_mut_while_readonly() {
         let mut boxed = Box::<u8>::zero(1);
         let _ = boxed.unlock();
-        let _ = unsafe { boxed.as_mut() };
+        let _ = boxed.as_mut();
     }
 
     #[test]

@@ -78,7 +78,7 @@ mod assert {
     macro_rules! proven {
         ($($arg:tt)*) => {
             assert!($($arg)*)
-        }
+        };
     }
 
     /// This is intended to be used in a conditional expression, and
@@ -89,14 +89,22 @@ mod assert {
     macro_rules! always {
         ($cond:expr) => { {
             assert!($cond); true
-        } }
+        } };
+
+        ($cond:expr, $($arg:tt)*) => {
+            assert!($cond, $($arg)*)
+        };
     }
 
     /// The logical opposite of `always`
     macro_rules! never {
         ($cond:expr) => { {
-            assert!(!$cond); true
-        } }
+            assert!(!$cond); false
+        } };
+
+        ($cond:expr, $($arg:tt)*) => {
+            assert!(!$cond, $($arg)*)
+        };
     }
 
     /// Ensures, for code-coverage purposes, that we have tests for
@@ -117,9 +125,29 @@ mod assert {
 #[macro_use]
 mod assert {
     #![allow(unused_macros)]
-    macro_rules! proven { ($($arg:tt)*) => () }
-    macro_rules! always { ($cond:expr)  => { true } }
-    macro_rules! never  { ($cond:expr)  => { true } }
+    macro_rules! proven {
+        ($($arg:tt)*) => ();
+    }
+
+    macro_rules! always {
+        ($cond:expr) => {
+            true
+        };
+
+        ($cond:expr, $($arg:tt)*) => {
+            assert!($cond, $($arg)*)
+        };
+    }
+
+    macro_rules! never {
+        ($cond:expr) => {
+            false
+        };
+
+        ($cond:expr, $($arg:tt)*) => {
+            assert!(!$cond, $($arg)*)
+        };
+    }
 
     // Well, this sucks. The intent here is that code coverage tools
     // will be able to detect if this line isn't run due to the
@@ -132,12 +160,14 @@ mod assert {
     // Still, we'll leave this in place with the hopes that some day it
     // will start working and we'll live in a happy world where we can
     // verify edge cases are tracked.
-    macro_rules! tested { ($cond:expr) => {
-        if $cond {
-            // TODO: replace with [`test::black_box`] when stable
-            let _ = crate::ffi::sodium::memcmp(&[], &[]);
-        }
-    } }
+    macro_rules! tested {
+        ($cond:expr) => {
+            if $cond {
+                // TODO: replace with [`test::black_box`] when stable
+                let _ = crate::ffi::sodium::memcmp(&[], &[]);
+            }
+        };
+    }
 }
 
 /// See above.
@@ -145,10 +175,33 @@ mod assert {
 #[macro_use]
 mod assert {
     #![allow(unused_macros)]
-    macro_rules! proven { ($($arg:tt)*) => () }
-    macro_rules! always { ($cond:expr)  => ($cond) }
-    macro_rules! never  { ($cond:expr)  => (!$cond) }
-    macro_rules! tested { ($cond:expr)  => () }
+    macro_rules! proven {
+        ($($arg:tt)*) => ();
+    }
+
+    macro_rules! always {
+        ($cond:expr) => {
+            $cond
+        };
+
+        ($cond:expr, $($arg:tt)*) => {
+            assert!($cond, $($arg)*)
+        };
+    }
+
+    macro_rules! never {
+        ($cond:expr) => {
+            $cond
+        };
+
+        ($cond:expr, $($arg:tt)*) => {
+            assert!(!$cond, $($arg)*)
+        };
+    }
+
+    macro_rules! tested {
+        ($cond:expr) => ();
+    }
 }
 
 /// Container for FFI-related code.
