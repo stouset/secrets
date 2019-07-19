@@ -218,10 +218,10 @@ mod test {
         let b = [0xb8, 0xa4, 0x06];
         let c = [0xb8, 0xa4, 0x06, 0xd1, 0x3a];
 
-        assert!(memcmp(&a, &b) == false);
-        assert!(memcmp(&b, &a) == false);
-        assert!(memcmp(&a, &c) == false);
-        assert!(memcmp(&c, &a) == false);
+        assert!(!memcmp(&a, &b));
+        assert!(!memcmp(&b, &a));
+        assert!(!memcmp(&a, &c));
+        assert!(!memcmp(&c, &a));
     }
 }
 

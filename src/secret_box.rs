@@ -417,9 +417,9 @@ mod test {
         let mut secret = SecretBox::<u64>::zero();
         let mut s      = secret.borrow_mut();
 
-        *s = 0x01abcdef;
+        *s = 0x01ab_cdef;
 
-        assert_eq!(*s, 0x01abcdef);
+        assert_eq!(*s, 0x01ab_cdef);
     }
 
     #[test]
