@@ -52,7 +52,7 @@ use std::thread;
 /// ```
 /// # use secrets::Secret;
 /// Secret::<[u8; 16]>::random(|s| {
-///     // use `s` as if it were a `[u8; 16]`
+///     // use `s` as if it were a `&mut [u8; 16]`
 /// });
 /// ```
 ///

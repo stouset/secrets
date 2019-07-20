@@ -11,9 +11,7 @@
 //! allocation, an underflow canary (to catch underflows before a
 //! guard page), and are zeroed out when freed.
 
-// TODO: README
 // TODO: examples directory
-// TODO: sqlite-like assert, always, never, testcase
 // TODO: replace sodium::fail() with mocks for testing cleanliness
 
 #![warn(future_incompatible)]
