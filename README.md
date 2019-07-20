@@ -4,6 +4,7 @@ secrets
 [![Build Status][badge-ci]][ci]
 [![Test Coverage][badge-coverage]][coverage]
 [![Cargo Crate][badge-package]][package]
+[![Docs][badge-docs]][docs]
 [![License][badge-license]][license]
 
 `secrets` is a library to help Rust programmers safely held cryptographic
@@ -82,6 +83,7 @@ at your option.
 
 [badge-ci]:       https://img.shields.io/travis/stouset/secrets/master.svg
 [badge-coverage]: https://coveralls.io/repos/github/stouset/secrets/badge.svg
+[badge-docs]:     https://docs.rs/secrets/badge.svg
 [badge-license]:  https://img.shields.io/crates/l/secrets.svg
 [badge-package]:  https://img.shields.io/crates/v/secrets.svg
 
