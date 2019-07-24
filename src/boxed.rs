@@ -72,6 +72,9 @@ impl<T: Bytes> Box<T> {
     {
         let mut boxed = Self::new_unlocked(1);
 
+        proven!(boxed.ptr != std::ptr::NonNull::dangling());
+        proven!(boxed.len == 1);
+
         // this is safe since we are guaranteed to have a one-length
         // pointer
         init(unsafe { boxed.ptr.as_mut() });
@@ -90,6 +93,8 @@ impl<T: Bytes> Box<T> {
         F: FnOnce(&mut [T]),
     {
         let mut boxed = Self::new_unlocked(len);
+
+        proven!(boxed.ptr != std::ptr::NonNull::dangling());
 
         init(boxed.as_mut_slice());
 

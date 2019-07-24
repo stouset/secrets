@@ -171,17 +171,21 @@ pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
 /// `dst` *must* be at least as long as `src` and *must not* overlap
 /// `src`.
 pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
-    proven!(src.len() <= dst.len());
+    never!(src.len() > dst.len(),
+        "secrets: may not transfer a smaller `src` into a larger `dst`");
 
-    // Based on the requirements of `ptr::copy_nonoverlapping`, we
-    // attempt to ensure that either:
+    // Based on the requirements of `ptr::copy_nonoverlapping` and the
+    // that we're going to clobber `src`, we ensure that either
     //
-    // * `src` is lower than `dst` and `src` doesn't extend into`dst`, or
-    // * `src` is higher than `dst` and so we can write into `dst` without
-    //   accidentally clobbering unread bytes of `src`
+    // * `src` is lower than `dst`, and `src` doesn't extend into `dst`, or
+    // * `dst` is lower than `src`, and `dst` doesn't extend into `src`
+    //
+    // this is proven since in safe rust, two mutable slices may not
+    // overlap with one-another
     proven!(
         (src.as_ptr() < dst.as_ptr() && src.as_ptr().add(src.len()) <= dst.as_ptr()) ||
-        (src.as_ptr() > dst.as_ptr())
+        (dst.as_ptr() < src.as_ptr() && dst.as_ptr().add(dst.len()) <= src.as_ptr()),
+        "secrets: may not transfer overlapping slices into one-another"
     );
 
     src.as_ptr().copy_to_nonoverlapping(dst.as_mut_ptr(), src.len());
