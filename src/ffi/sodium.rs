@@ -54,7 +54,7 @@ pub(crate) fn fail() {
 pub(crate) fn init() -> bool {
     unsafe {
         #[cfg(test)]
-        { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
+        { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
         INIT.call_once(|| {
             // NOTE: Calls to transmute fail to compile if the source
@@ -105,7 +105,7 @@ pub(crate) unsafe fn free<T>(ptr: *mut T) {
 /// Calls the platform's underlying `mlock(2)` implementation.
 pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
+    { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
     sodium_mlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
@@ -113,7 +113,7 @@ pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
 /// Calls the platform's underlying `munlock(2)` implementation.
 pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
+    { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
     sodium_munlock(ptr as *mut _, mem::size_of::<T>()) == 0
 }
@@ -124,7 +124,7 @@ pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
 /// by libsodium.
 pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
+    { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
     sodium_mprotect_noaccess(ptr as *mut _) == 0
 }
@@ -135,7 +135,7 @@ pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
 /// by libsodium.
 pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
+    { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
     sodium_mprotect_readonly(ptr as *mut _) == 0
 }
@@ -146,7 +146,7 @@ pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
 /// by libsodium.
 pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
     #[cfg(test)]
-    { if FAIL.with(std::cell::Cell::get) { return false }; let _x = 0; };
+    { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
     sodium_mprotect_readwrite(ptr as *mut _) == 0
 }
