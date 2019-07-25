@@ -160,7 +160,7 @@ pub struct RefMut<'a, T: Bytes> {
 }
 
 impl<T: Bytes> SecretBox<T> {
-    /// Instantiates and returns a new `SecretBox`.
+    /// Instantiates and returns a new [`SecretBox`].
     ///
     /// Accepts a callback function that is responsible for initializing
     /// its contents. The value yielded to the initialization callback
@@ -179,7 +179,7 @@ impl<T: Bytes> SecretBox<T> {
         F: FnOnce(&mut T),
     {
         Self {
-            boxed: Box::new_one(f),
+            boxed: Box::new(1, |b| f(b.as_mut())),
         }
     }
 

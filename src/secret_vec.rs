@@ -181,7 +181,7 @@ impl<T: Bytes> SecretVec<T> {
         F: FnOnce(&mut [T]),
     {
         Self {
-            boxed: Box::new(len, f),
+            boxed: Box::new(len, |b| f(b.as_mut_slice())),
         }
     }
 
