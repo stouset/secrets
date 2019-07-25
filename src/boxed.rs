@@ -62,22 +62,20 @@ pub(crate) struct Box<T: Bytes> {
 }
 
 impl<T: Bytes> Box<T> {
-    /// Instantiates a new [`Box`] that can hold exactly one element of
-    /// type `T`. The callback `F` will be used for initialization and
-    /// will be called with a mutable reference to the element. The
-    /// memory will be pre-filled with fixed bytes of arbitrary value.
-    pub(crate) fn new_one<F>(init: F) -> Self
+    /// Instantiates a new [`Box`] that can hold `len` elements of type
+    /// `T`. The callback `F` will be used for initialization and will
+    /// be called with a mutable reference to the unlocked [`Box`]. The
+    /// [`Box`] will be locked before it is returned from this function.
+    pub(crate) fn new<F>(len: usize, init: F) -> Self
     where
-        F: FnOnce(&mut T),
+        F: FnOnce(&mut Self),
     {
-        let mut boxed = Self::new_unlocked(1);
+        let mut boxed = Self::new_unlocked(len);
 
         proven!(boxed.ptr != std::ptr::NonNull::dangling());
-        proven!(boxed.len == 1);
+        proven!(boxed.len == len);
 
-        // this is safe since we are guaranteed to have a one-length
-        // pointer
-        init(unsafe { boxed.ptr.as_mut() });
+        init(&mut boxed);
 
         boxed.lock();
         boxed
@@ -85,21 +83,24 @@ impl<T: Bytes> Box<T> {
 
     /// Instantiates a new [`Box`] that can hold `len` elements of type
     /// `T`. The callback `F` will be used for initialization and will
-    /// be called with a mutable reference to a slice containing these
-    /// elements. The memory will be pre-filled with fixed bytes of
-    /// arbitrary value.
-    pub(crate) fn new<F>(len: usize, init: F) -> Self
+    /// be called with a mutable reference to the unlocked [`Box`]. This
+    /// callback must return a [`Result`] indicating whether or not the
+    /// initialization succeeded (the [`Ok`] value is ignored). The
+    /// [`Box`] will be locked before it is returned from this function.
+    pub(crate) fn try_new<U, E, F>(len: usize, init: F) -> Result<Self, E>
     where
-        F: FnOnce(&mut [T]),
+        F: FnOnce(&mut Self) -> Result<U, E>
     {
         let mut boxed = Self::new_unlocked(len);
 
         proven!(boxed.ptr != std::ptr::NonNull::dangling());
+        proven!(boxed.len == len);
 
-        init(boxed.as_mut_slice());
+        let result = init(&mut boxed);
 
         boxed.lock();
-        boxed
+
+        result.map(|_| boxed)
     }
 
     /// Returns the number of elements in the [`Box`].
@@ -389,14 +390,14 @@ impl<T: Bytes + Randomizable> Box<T> {
     /// Instantiates a new [`Box`] with crypotgraphically-randomized
     /// contents.
     pub(crate) fn random(len: usize) -> Self {
-        Self::new(len, Randomizable::randomize)
+        Self::new(len, |b| b.as_mut_slice().randomize())
     }
 }
 
 impl<T: Bytes + Zeroable> Box<T> {
     /// Instantiates a new [`Box`] whose backing memory is zeroed.
     pub(crate) fn zero(len: usize) -> Self {
-        Self::new(len, Zeroable::zero)
+        Self::new(len, |b| b.as_mut_slice().zero())
     }
 }
 
@@ -430,8 +431,8 @@ impl<T: Bytes> Debug for Box<T> {
 
 impl<T: Bytes> Clone for Box<T> {
     fn clone(&self) -> Self {
-        Self::new(self.len, |s| {
-            s.copy_from_slice(self.unlock().as_slice());
+        Self::new(self.len, |b| {
+            b.as_mut_slice().copy_from_slice(self.unlock().as_slice());
             self.lock();
         })
     }
@@ -458,14 +459,14 @@ impl<T: Bytes + ConstantEq> PartialEq for Box<T> {
 impl<T: Bytes + Zeroable> From<&mut T> for Box<T> {
     fn from(data: &mut T) -> Self {
         // this is safe since the secret and data can never overlap
-        Self::new_one(|s| unsafe { data.transfer(s) })
+        Self::new(1, |b| unsafe { data.transfer(b.as_mut()) })
     }
 }
 
 impl<T: Bytes + Zeroable> From<&mut [T]> for Box<T> {
     fn from(data: &mut [T]) -> Self {
         // this is safe since the secret and data can never overlap
-        Self::new(data.len(), |s| unsafe { data.transfer(s) })
+        Self::new(data.len(), |b| unsafe { data.transfer(b.as_mut_slice()) })
     }
 }
 
@@ -491,7 +492,7 @@ mod tests {
     #[test]
     fn it_allows_custom_initialization() {
         let boxed = Box::<u8>::new(1, |secret| {
-            secret.clone_from_slice(b"\x04");
+            secret.as_mut_slice().clone_from_slice(b"\x04");
         });
 
         assert_eq!(boxed.unlock().as_slice(), [0x04]);

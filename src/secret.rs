@@ -5,7 +5,7 @@ use crate::ffi::sodium;
 use crate::traits::*;
 
 use std::borrow::BorrowMut;
-use std::fmt::{Debug, Formatter, Result};
+use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::thread;
 
@@ -221,7 +221,7 @@ impl<T: Bytes + Clone> Clone for RefMut<'_, T> {
 }
 
 impl<T: Bytes> Debug for RefMut<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{{ {} bytes redacted }}", self.data.size())
     }
 }

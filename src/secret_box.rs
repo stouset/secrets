@@ -1,7 +1,7 @@
 use crate::boxed::Box;
 use crate::traits::*;
 
-use std::fmt::{Debug, Formatter, Result};
+use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
 ///
@@ -160,7 +160,7 @@ pub struct RefMut<'a, T: Bytes> {
 }
 
 impl<T: Bytes> SecretBox<T> {
-    /// Instantiates and returns a new `SecretBox`.
+    /// Instantiates and returns a new [`SecretBox`].
     ///
     /// Accepts a callback function that is responsible for initializing
     /// its contents. The value yielded to the initialization callback
@@ -179,8 +179,19 @@ impl<T: Bytes> SecretBox<T> {
         F: FnOnce(&mut T),
     {
         Self {
-            boxed: Box::new_one(f),
+            boxed: Box::new(1, |b| f(b.as_mut())),
         }
+    }
+
+    /// Instantiates and returns a new [`SecretBox`]. Has equivalent
+    /// semantics to [`new`][SecretBox::new], but allows the callback to
+    /// return success or failure through a [`Result`].
+    pub fn try_new<U, E, F>(f: F) -> Result<Self, E>
+    where
+        F: FnOnce(&mut T) -> Result<U, E>,
+    {
+        Box::try_new(1, |b| f(b.as_mut()))
+            .map(|b| Self { boxed: b })
     }
 
     /// Returns the size in bytes of the [`SecretBox`].
@@ -260,7 +271,7 @@ impl<T: Bytes + Zeroable> From<&mut T> for SecretBox<T> {
 }
 
 impl<T: Bytes> Debug for SecretBox<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.boxed.fmt(f)
     }
 }
@@ -306,7 +317,7 @@ impl<T: Bytes> Deref for Ref<'_, T> {
 }
 
 impl<T: Bytes> Debug for Ref<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.boxed.fmt(f)
     }
 }
@@ -364,7 +375,7 @@ impl<T: Bytes> DerefMut for RefMut<'_, T> {
 }
 
 impl<T: Bytes> Debug for RefMut<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.boxed.fmt(f)
     }
 }
