@@ -423,6 +423,11 @@ mod test {
     }
 
     #[test]
+    fn it_allows_failing_initialization() {
+        assert!(SecretVec::<u8>::try_new(|_| Err::<(), ()>(())).is_err());
+    }
+
+    #[test]
     fn it_allows_borrowing_immutably() {
         let secret = SecretVec::<u64>::zero(2);
         let s      = secret.borrow();
@@ -512,6 +517,31 @@ mod test {
         let secret_2 = SecretVec::<[u64; 8]>::random(32);
 
         assert_ne!(secret_1, secret_2);
+    }
+
+    #[test]
+    fn it_compares_equality_immutably_on_refs() {
+        let secret_1 = SecretVec::<u8>::from(&mut [0xaf][..]);
+        let secret_2 = secret_1.clone();
+
+        assert_eq!(secret_1.borrow(), secret_2.borrow());
+    }
+
+    #[test]
+    fn it_compares_equality_immutably_on_ref_muts() {
+        let mut secret_1 = SecretVec::<u8>::from(&mut [0xaf][..]);
+        let mut secret_2 = secret_1.clone();
+
+        assert_eq!(secret_1.borrow_mut(), secret_2.borrow_mut());
+    }
+
+    #[test]
+    fn it_compares_equality_immutably_regardless_of_mut() {
+        let mut secret_1 = SecretVec::<u8>::from(&mut [0xaf][..]);
+        let mut secret_2 = secret_1.clone();
+
+        assert_eq!(secret_1.borrow_mut(), secret_2.borrow());
+        assert_eq!(secret_2.borrow_mut(), secret_1.borrow());
     }
 }
 
