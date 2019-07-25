@@ -10,6 +10,57 @@
 //! Memory allocations are protected by guard pages before after the
 //! allocation, an underflow canary (to catch underflows before a
 //! guard page), and are zeroed out when freed.
+//!
+//! # Example: load a master key from disk and generate subkeys from it
+//!
+//! ```
+//! # use secrets::SecretBox;
+//! use std::fs::File;
+//! use std::io::Read;
+//!
+//! use libsodium_sys;
+//!
+//! const KEY_LEN : usize = libsodium_sys::crypto_kdf_KEYBYTES as usize;
+//! const CTX_LEN : usize = libsodium_sys::crypto_kdf_CONTEXTBYTES as usize;
+//!
+//! const CONTEXT : &[u8; CTX_LEN] = b"example\0";
+//!
+//! fn derive_subkey(
+//!     key:       &    [u8; KEY_LEN],
+//!     context:   &    [u8; CTX_LEN],
+//!     subkey_id: u64,
+//!     subkey:    &mut [u8],
+//! ) {
+//!     unsafe {
+//!         libsodium_sys::crypto_kdf_derive_from_key(
+//!             subkey.as_mut_ptr(),
+//!             subkey.len(),
+//!             subkey_id,
+//!             context.as_ptr() as *const i8,
+//!             key.as_ptr()
+//!         );
+//!     }
+//! }
+//!
+//! let master_key = SecretBox::<[u8; KEY_LEN]>::try_new(|mut s| {
+//!     File::open("example/master_key/key")?.read_exact(s)
+//! })?;
+//!
+//! let subkey_0 = SecretBox::<[u8; 16]>::new(|mut s| {
+//!     derive_subkey(&master_key.borrow(), CONTEXT, 0, s);
+//! });
+//!
+//! let subkey_1 = SecretBox::<[u8; 16]>::new(|mut s| {
+//!     derive_subkey(&master_key.borrow(), CONTEXT, 1, s);
+//! });
+//!
+//! assert_ne!(
+//!     subkey_0.borrow(),
+//!     subkey_1.borrow(),
+//! );
+//!
+//! # Ok::<(), std::io::Error>(())
+//! ```
 
 // TODO: examples directory
 // TODO: replace sodium::fail() with mocks for testing cleanliness

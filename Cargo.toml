@@ -20,3 +20,6 @@ libc = '0'
 [build-dependencies]
 ctest      = '0.2'
 pkg-config = '0.3'
+
+[dev-dependencies]
+libsodium-sys  = '0.2'
