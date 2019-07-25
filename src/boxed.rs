@@ -81,6 +81,28 @@ impl<T: Bytes> Box<T> {
         boxed
     }
 
+    /// Instantiates a new [`Box`] that can hold `len` elements of type
+    /// `T`. The callback `F` will be used for initialization and will
+    /// be called with a mutable reference to the unlocked [`Box`]. This
+    /// callback must return a [`Result`] indicating whether or not the
+    /// initialization succeeded (the [`Ok`] value is ignored). The
+    /// [`Box`] will be locked before it is returned from this function.
+    pub(crate) fn try_new<U, E, F>(len: usize, init: F) -> Result<Self, E>
+    where
+        F: FnOnce(&mut Self) -> Result<U, E>
+    {
+        let mut boxed = Self::new_unlocked(len);
+
+        proven!(boxed.ptr != std::ptr::NonNull::dangling());
+        proven!(boxed.len == len);
+
+        let result = init(&mut boxed);
+
+        boxed.lock();
+
+        result.map(|_| boxed)
+    }
+
     /// Returns the number of elements in the [`Box`].
     pub(crate) fn len(&self) -> usize {
         self.len

@@ -1,7 +1,7 @@
 use crate::boxed::Box;
 use crate::traits::*;
 
-use std::fmt::{Debug, Formatter, Result};
+use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 
 /// A type for protecting variable-length secrets allocated on the heap.
@@ -185,6 +185,17 @@ impl<T: Bytes> SecretVec<T> {
         }
     }
 
+    /// Instantiates and returns a new [`SecretVec`]. Has equivalent
+    /// semantics to [`new`][SecretVec::new], but allows the callback to
+    /// return success or failure through a [`Result`].
+    pub fn try_new<U, E, F>(f: F) -> Result<Self, E>
+    where
+        F: FnOnce(&mut [T]) -> Result<U, E>,
+    {
+        Box::try_new(1, |b| f(b.as_mut_slice()))
+            .map(|b| Self { boxed: b })
+    }
+
     /// Returns the number of elements in the [`SecretVec`].
     pub fn len(&self) -> usize {
         self.boxed.len()
@@ -273,7 +284,7 @@ impl<T: Bytes + Zeroable> From<&mut [T]> for SecretVec<T> {
 }
 
 impl<T: Bytes> Debug for SecretVec<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.boxed.fmt(f)
     }
 }
@@ -316,7 +327,7 @@ impl<T: Bytes> Deref for Ref<'_, T> {
 }
 
 impl<T: Bytes> Debug for Ref<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.boxed.fmt(f)
     }
 }
@@ -371,7 +382,7 @@ impl<T: Bytes> DerefMut for RefMut<'_, T> {
 }
 
 impl<T: Bytes> Debug for RefMut<'_, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         self.boxed.fmt(f)
     }
 }
