@@ -715,7 +715,7 @@ mod tests_sigsegv {
                 0  => { f(); process::exit(0) },
                 _  => {
                     if libc::waitpid(pid, &mut stat, 0) == -1 {
-                        panic!("`waitpid(2) failed");
+                        panic!("`waitpid(2)` failed");
                     };
 
                     // assert that the process terminated due to a signal
@@ -725,8 +725,8 @@ mod tests_sigsegv {
                     // either of which can be sent by an attempt to
                     // access protected memory regions
                     assert!(
-                        libc::WTERMSIG(stat) == 10 ||
-                        libc::WTERMSIG(stat) == 11
+                        libc::WTERMSIG(stat) == libc::SIGBUS ||
+                        libc::WTERMSIG(stat) == libc::SIGSEGV
                     );
                 }
             }

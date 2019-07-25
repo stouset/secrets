@@ -424,7 +424,7 @@ mod test {
 
     #[test]
     fn it_allows_failing_initialization() {
-        assert!(SecretVec::<u8>::try_new(|_| Err::<(), ()>(())).is_err());
+        assert!(SecretVec::<u8>::try_new(|_| Ok::<(), ()>(())).is_ok());
     }
 
     #[test]
