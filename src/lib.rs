@@ -26,8 +26,8 @@
 //! const CONTEXT : &[u8; CTX_LEN] = b"example\0";
 //!
 //! fn derive_subkey(
-//!     key:       &    [u8; KEY_LEN],
-//!     context:   &    [u8; CTX_LEN],
+//!     key:       &[u8; KEY_LEN],
+//!     context:   &[u8; CTX_LEN],
 //!     subkey_id: u64,
 //!     subkey:    &mut [u8],
 //! ) {
