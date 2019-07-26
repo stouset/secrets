@@ -38,7 +38,7 @@ the following protections:
 Examples
 --------
 
-Generating cryptographic keys:
+### Example: Generating cryptographic keys
 
 ```rust
 Secret::<[u8; 16]>::random(|s| {
@@ -49,7 +49,7 @@ Secret::<[u8; 16]>::random(|s| {
 });
 ```
 
-# Example: load a master key from disk and generate subkeys from it
+### Example: load a master key from disk and generate subkeys from it
 
 ```rust
 use std::fs::File;
@@ -97,7 +97,7 @@ assert_ne!(
 );
 ```
 
-Holding a decrypted plaintext (pseudocode):
+### Example: Holding a decrypted plaintext (pseudocode)
 
 ```rust
 let key = SecretBox::<[u8; 16]>::new(|mut s| {
