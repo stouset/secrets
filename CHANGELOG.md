@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Reworked internals of Box initialization
+- Core dumps are now only disabled via `setrlimit(2)` in release builds
 
 ## [0.12.0] 2019-07-19
 

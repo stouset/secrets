@@ -68,20 +68,24 @@ pub(crate) fn init() -> bool {
             #[allow(clippy::useless_transmute)]
             let _ = std::mem::transmute::<usize, size_t>(0);
 
-            // core dumps should be disabled for any programs dealing with
-            // cryptographic secrets
-            let rlimit = libc::rlimit {
-                rlim_cur: 0,
-                rlim_max: 0,
-            };
+            let mut failure = false;
+
+            // in non-development builds, ensure that core dumps are
+            // disabled
+            if cfg!(any(profile = "release", profile = "coverage")) {
+                failure |= libc::setrlimit(libc::RLIMIT_CORE, &libc::rlimit {
+                    rlim_cur: 0,
+                    rlim_max: 0,
+                }) == -1;
+            }
 
             // sodium_init returns 0 on success, -1 on failure, and 1 if
             // the library is already initialized; someone else might
             // have already initialized it before us, so we only care
             // about failure
-            INITIALIZED =
-                ( libc::setrlimit(libc::RLIMIT_CORE, &rlimit) != -1 ) &&
-                ( sodium_init() != -1 );
+            failure |= sodium_init() == -1;
+
+            INITIALIZED = !failure;
         });
 
         INITIALIZED

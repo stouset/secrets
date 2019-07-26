@@ -51,9 +51,7 @@ impl fmt::Display for Profile {
 }
 
 fn main() {
-    let profile = Profile::infer();
-
-    if profile != Profile::Release {
+    if Profile::infer() != Profile::Release {
         ctest::TestGenerator::new()
             .header("sodium.h")
             .generate("src/ffi/sodium.rs", "sodium_ctest.rs");
