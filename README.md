@@ -38,7 +38,7 @@ the following protections:
 Examples
 --------
 
-### Example: Generating cryptographic keys
+### Example: generating cryptographic keys
 
 ```rust
 Secret::<[u8; 16]>::random(|s| {
@@ -55,11 +55,12 @@ Secret::<[u8; 16]>::random(|s| {
 use std::fs::File;
 use std::io::Read;
 
+use libsodium_sys as sodium;
 use secrets::SecretBox;
-use libsodium_sys;
 
-const KEY_LEN : usize = libsodium_sys::crypto_kdf_KEYBYTES as usize;
-const CTX_LEN : usize = libsodium_sys::crypto_kdf_CONTEXTBYTES as usize;
+const KEY_LEN : usize = sodium::crypto_kdf_KEYBYTES     as _;
+const CTX_LEN : usize = sodium::crypto_kdf_CONTEXTBYTES as _;
+
 const CONTEXT : &[u8; CTX_LEN] = b"example\0";
 
 fn derive_subkey(
@@ -97,22 +98,49 @@ assert_ne!(
 );
 ```
 
-### Example: Holding a decrypted plaintext (pseudocode)
+### Example: securely storing a decrypted ciphertext in memory
 
 ```rust
-let key = SecretBox::<[u8; 16]>::new(|mut s| {
-    /// initialized from some preexisting key
+use std::fs::File;
+use std::io::Read;
+
+use libsodium_sys as sodium;
+use secrets::{SecretBox, SecretVec};
+
+const KEY_LEN   : usize = sodium::crypto_secretbox_KEYBYTES   as _;
+const NONCE_LEN : usize = sodium::crypto_secretbox_NONCEBYTES as _;
+const MAC_LEN   : usize = sodium::crypto_secretbox_MACBYTES   as _;
+
+let mut key        = SecretBox::<[u8; KEY_LEN]>::zero();
+let mut nonce      = [0; NONCE_LEN];
+let mut ciphertext = Vec::new();
+
+File::open("example/decrypted_ciphertext/key")?
+    .read_exact(key.borrow_mut().as_mut())?;
+
+File::open("example/decrypted_ciphertext/nonce")?
+    .read_exact(&mut nonce)?;
+
+File::open("example/decrypted_ciphertext/ciphertext")?
+    .read_to_end(&mut ciphertext)?;
+
+let plaintext = SecretVec::<u8>::new(ciphertext.len() - MAC_LEN, |mut s| {
+    if -1 == unsafe {
+        sodium::crypto_secretbox_open_easy(
+            s.as_mut_ptr(),
+            ciphertext.as_ptr(),
+            ciphertext.len() as _,
+            nonce.as_ptr(),
+            key.borrow().as_ptr(),
+        )
+    } {
+        panic!("failed to authenticate ciphertext during decryption");
+    }
 });
 
-let mut ciphertext = SecretVec::<u8>::from(&mut b"..."); // some ciphertext
-let     nonce      = b"..."; // some nonce
-let     tag        = b"..."; // some authentication tag
-
-let ciphertext_rw = ciphertext.borrow_mut();
-
-crypto::secretbox::open_detached(
-    &ciphertext_rw[..],
-    tag, nonce, key
+assert_eq!(
+    *b"attack at dawn",
+    *plaintext.borrow(),
 );
 ```
 
