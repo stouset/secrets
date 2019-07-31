@@ -35,6 +35,21 @@ the following protections:
   freed using canaries, and will result in a segmentation fault and
   program termination
 
+Panic Safety
+------------
+
+This library is explicitly not panic-safe. To ensure the safety of
+protected memory space, this library can and will panic if it is unable
+to enforce its advertised guarantees.
+
+Similarly, this library will cause segmentation faults if (and only if)
+it detects certain safety violations. For example, this can happen if
+a process attempts to directly read or write to the contents of memory
+that hasn't been properly unlocked, or if canaries have been
+overwritten. This library has been written to ensure that such
+violations should be impossible to cause through well-formed Rust, and
+so should only occur as a result of a security vulnerability.
+
 Examples
 --------
 
