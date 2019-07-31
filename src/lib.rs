@@ -11,17 +11,30 @@
 //! allocation, an underflow canary (to catch underflows before a
 //! guard page), and are zeroed out when freed.
 //!
+//! # Example: generating crytographic keys
+//!
+//! ```
+//! use secrets::Secret;
+//!
+//! Secret::<[u8; 16]>::random(|s| {
+//!     // use `s` as if it were a `&mut [u8; 16]`
+//!     //
+//!     // the memory is `mlock(2)`ed and will be zeroed when this closure
+//!     // exits
+//! });
+//! ```
+//!
 //! # Example: load a master key from disk and generate subkeys from it
 //!
 //! ```
-//! # use secrets::SecretBox;
 //! use std::fs::File;
 //! use std::io::Read;
 //!
-//! use libsodium_sys;
+//! use libsodium_sys as sodium;
+//! use secrets::SecretBox;
 //!
-//! const KEY_LEN : usize = libsodium_sys::crypto_kdf_KEYBYTES as usize;
-//! const CTX_LEN : usize = libsodium_sys::crypto_kdf_CONTEXTBYTES as usize;
+//! const KEY_LEN : usize = sodium::crypto_kdf_KEYBYTES     as _;
+//! const CTX_LEN : usize = sodium::crypto_kdf_CONTEXTBYTES as _;
 //!
 //! const CONTEXT : &[u8; CTX_LEN] = b"example\0";
 //!
@@ -57,6 +70,54 @@
 //! assert_ne!(
 //!     subkey_0.borrow(),
 //!     subkey_1.borrow(),
+//! );
+//!
+//! # Ok::<(), std::io::Error>(())
+//! ```
+//!
+//! # Example: securely storing a decrypted ciphertext in memory
+//!
+//! ```
+//! use std::fs::File;
+//! use std::io::Read;
+//!
+//! use libsodium_sys as sodium;
+//! use secrets::{SecretBox, SecretVec};
+//!
+//! const KEY_LEN   : usize = sodium::crypto_secretbox_KEYBYTES   as _;
+//! const NONCE_LEN : usize = sodium::crypto_secretbox_NONCEBYTES as _;
+//! const MAC_LEN   : usize = sodium::crypto_secretbox_MACBYTES   as _;
+//!
+//! let mut key        = SecretBox::<[u8; KEY_LEN]>::zero();
+//! let mut nonce      = [0; NONCE_LEN];
+//! let mut ciphertext = Vec::new();
+//!
+//! File::open("example/decrypted_ciphertext/key")?
+//!     .read_exact(key.borrow_mut().as_mut())?;
+//!
+//! File::open("example/decrypted_ciphertext/nonce")?
+//!     .read_exact(&mut nonce)?;
+//!
+//! File::open("example/decrypted_ciphertext/ciphertext")?
+//!     .read_to_end(&mut ciphertext)?;
+//!
+//! let plaintext = SecretVec::<u8>::new(ciphertext.len() - MAC_LEN, |mut s| {
+//!     if -1 == unsafe {
+//!         sodium::crypto_secretbox_open_easy(
+//!             s.as_mut_ptr(),
+//!             ciphertext.as_ptr(),
+//!             ciphertext.len() as _,
+//!             nonce.as_ptr(),
+//!             key.borrow().as_ptr(),
+//!         )
+//!     } {
+//!         panic!("failed to authenticate ciphertext during decryption");
+//!     }
+//! });
+//!
+//! assert_eq!(
+//!     *b"attack at dawn",
+//!     *plaintext.borrow(),
 //! );
 //!
 //! # Ok::<(), std::io::Error>(())
