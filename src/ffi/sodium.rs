@@ -233,18 +233,4 @@ mod test {
     }
 }
 
-#[cfg(all(test, profile = "debug"))]
-mod test_ffi {
-    #![allow(warnings)]
-
-    use super::*;
-
-    include!(concat!(env!("OUT_DIR"), "/sodium_ctest.rs"));
-
-    #[test]
-    fn ctest() {
-        main();
-    }
-}
-
 // LCOV_EXCL_STOP

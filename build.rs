@@ -51,11 +51,7 @@ impl fmt::Display for Profile {
 }
 
 fn main() {
-    if Profile::infer() != Profile::Release {
-        ctest::TestGenerator::new()
-            .header("sodium.h")
-            .generate("src/ffi/sodium.rs", "sodium_ctest.rs");
-    }
+    let _profile = Profile::infer();
 
     // 1.0.8 was chosen (IIRC) because this is when the garbage byte
     // value was fixed at 0xdb
