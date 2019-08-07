@@ -18,12 +18,13 @@ rust:
   #  * >= 1.36 for MaybeUninit
   - 1.36.0
 
-dist: xenial
+dist: bionic
 
 addons:
   apt:
     packages:
       - libsodium-dev
+      - pkg-config
   homebrew:
     packages:
       - libsodium
