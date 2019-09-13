@@ -72,11 +72,15 @@ pub(crate) fn init() -> bool {
 
             // in non-development builds, ensure that core dumps are
             // disabled
+            // On windows no such functionality exists.
+#[cfg(not(windows))]
+{
             if cfg!(any(profile = "release", profile = "coverage")) {
                 failure |= libc::setrlimit(libc::RLIMIT_CORE, &libc::rlimit {
                     rlim_cur: 0,
                     rlim_max: 0,
                 }) == -1;
+}
             }
 
             // sodium_init returns 0 on success, -1 on failure, and 1 if
