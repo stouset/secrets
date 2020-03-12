@@ -87,7 +87,6 @@ pub struct Secret<T: Bytes> {
 /// contents that intercepts calls like [`Clone::clone`] and
 /// [`Debug::fmt`] that are likely to result in the inadvertent
 /// disclosure of secret data.
-#[derive(Eq)]
 pub struct RefMut<'a, T: Bytes> {
     /// a reference to the underlying secret data that will be derefed
     data: &'a mut T,
@@ -244,6 +243,8 @@ impl<T: Bytes> PartialEq for RefMut<'_, T> {
         self.data.constant_eq(rhs.data)
     }
 }
+
+impl<T: Bytes> Eq for RefMut<'_, T> {}
 
 // LCOV_EXCL_START
 

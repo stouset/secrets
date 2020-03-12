@@ -139,7 +139,6 @@ pub struct SecretBox<T: Bytes> {
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-#[derive(Eq)]
 pub struct Ref<'a, T: Bytes> {
     /// an imutably-unlocked reference to the protected memory of a
     /// [`SecretBox`].
@@ -152,7 +151,6 @@ pub struct Ref<'a, T: Bytes> {
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-#[derive(Eq)]
 pub struct RefMut<'a, T: Bytes> {
     /// a mutably-unlocked reference to the protected memory of a
     /// [`SecretBox`].
@@ -342,6 +340,8 @@ impl<T: Bytes> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
     }
 }
 
+impl<T: Bytes> Eq for Ref<'_, T> {}
+
 impl<'a, T: Bytes> RefMut<'a, T> {
     /// Instantiates a new RefMut.
     fn new(boxed: &'a mut Box<T>) -> Self {
@@ -399,6 +399,8 @@ impl<T: Bytes> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
         self.constant_eq(rhs)
     }
 }
+
+impl<T: Bytes> Eq for RefMut<'_, T> {}
 
 // LCOV_EXCL_START
 
