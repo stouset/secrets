@@ -172,6 +172,14 @@
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::wrong_pub_self_convention))]
 
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::must_use_candidate))]
+
+// disabled due to https://github.com/rust-lang/rust-clippy/issues/5306
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::doc_markdown))]
+
+// disabled due to https://github.com/rust-lang/rust/issues/69952
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::wildcard_imports))]
+
 
 /// Macros for ensuring code correctness inspired by [sqlite].
 ///

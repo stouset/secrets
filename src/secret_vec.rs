@@ -138,7 +138,6 @@ pub struct SecretVec<T: Bytes> {
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-#[derive(Eq)]
 pub struct Ref<'a, T: Bytes> {
     /// an imutably-unlocked reference to the protected memory of a
     /// [`SecretVec`].
@@ -151,7 +150,6 @@ pub struct Ref<'a, T: Bytes> {
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-#[derive(Eq)]
 pub struct RefMut<'a, T: Bytes> {
     /// a mutably-unlocked reference to the protected memory of a
     /// [`SecretVec`].
@@ -188,6 +186,10 @@ impl<T: Bytes> SecretVec<T> {
     /// Instantiates and returns a new [`SecretVec`]. Has equivalent
     /// semantics to [`new`][SecretVec::new], but allows the callback to
     /// return success or failure through a [`Result`].
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` only if the user-provided callback does.
     pub fn try_new<U, E, F>(f: F) -> Result<Self, E>
     where
         F: FnOnce(&mut [T]) -> Result<U, E>,
@@ -352,6 +354,8 @@ impl<T: Bytes> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
     }
 }
 
+impl<T: Bytes> Eq for Ref<'_, T> {}
+
 impl<'a, T: Bytes> RefMut<'a, T> {
     /// Instantiates a new RefMut.
     fn new(boxed: &'a mut Box<T>) -> Self {
@@ -406,6 +410,8 @@ impl<T: Bytes> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
         self.constant_eq(rhs)
     }
 }
+
+impl<T: Bytes> Eq for RefMut<'_, T> {}
 
 // LCOV_EXCL_START
 
