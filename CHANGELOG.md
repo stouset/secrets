@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] 2020-03-12
+
+### Fixed
+- Resolved warnings caused by newer versions of Rust and clippy.
+
+### Removed
+- Removed development dependency on `ctest` since it is fragile and
+  uses unmaintained dependencies.
+
 ## [0.12.1] 2019-07-26
 
 ### Added
@@ -22,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Almost a ground-up rewrite from 0.11.0. This version will become 1.0
   after a short break-in period.
 
-[Unreleased]: https://github.com/stouset/secrets/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/stouset/secrets/compare/v1.0.0...HEAD
+[1.0.0]:      https://github.com/stouset/secrets/compare/v0.12.1...v1.0.0
 [0.12.1]:     https://github.com/stouset/secrets/compare/v0.12.0...v0.12.1
 [0.12.0]:     https://github.com/stouset/secrets/compare/v0.11.1...v0.12.0
