@@ -22,8 +22,10 @@ pub unsafe trait Zeroable: AsContiguousBytes {
     /// Copies all bytes from `self` into `other` before zeroing out
     /// `self`.
     ///
+    /// # Safety
+    ///
     /// `other` must be at least as large as `self` and the two
-    /// references may not overlap.
+    /// references must not overlap.
     unsafe fn transfer(&mut self, other: &mut Self) {
         sodium::memtransfer(
             self .as_mut_bytes(),

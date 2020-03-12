@@ -186,6 +186,10 @@ impl<T: Bytes> SecretVec<T> {
     /// Instantiates and returns a new [`SecretVec`]. Has equivalent
     /// semantics to [`new`][SecretVec::new], but allows the callback to
     /// return success or failure through a [`Result`].
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` only if the user-provided callback does.
     pub fn try_new<U, E, F>(f: F) -> Result<Self, E>
     where
         F: FnOnce(&mut [T]) -> Result<U, E>,

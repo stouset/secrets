@@ -184,6 +184,10 @@ impl<T: Bytes> SecretBox<T> {
     /// Instantiates and returns a new [`SecretBox`]. Has equivalent
     /// semantics to [`new`][SecretBox::new], but allows the callback to
     /// return success or failure through a [`Result`].
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` only if the user-provided callback does.
     pub fn try_new<U, E, F>(f: F) -> Result<Self, E>
     where
         F: FnOnce(&mut T) -> Result<U, E>,
@@ -343,7 +347,7 @@ impl<T: Bytes> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
 impl<T: Bytes> Eq for Ref<'_, T> {}
 
 impl<'a, T: Bytes> RefMut<'a, T> {
-    /// Instantiates a new RefMut.
+    /// Instantiates a new `RefMut`.
     fn new(boxed: &'a mut Box<T>) -> Self {
         proven!(boxed.len() == 1,
             "secrets: attempted to dereference a box with zero length");
