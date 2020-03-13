@@ -1,6 +1,6 @@
 [package]
 name    = "secrets"
-version = "0.12.1"
+version = "1.0.0"
 edition = "2018"
 
 authors     = ["Stephen Touset <stephen@touset.org>"]
