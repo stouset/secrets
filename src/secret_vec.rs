@@ -184,7 +184,7 @@ impl<T: Bytes> SecretVec<T> {
     }
 
     /// Instantiates and returns a new [`SecretVec`]. Has equivalent
-    /// semantics to [`new`][SecretVec::new], but allows the callback to
+    /// semantics to [`new`](SecretVec::new), but allows the callback to
     /// return success or failure through a [`Result`].
     ///
     /// # Errors
@@ -357,7 +357,7 @@ impl<T: Bytes> PartialEq<RefMut<'_, T>> for Ref<'_, T> {
 impl<T: Bytes> Eq for Ref<'_, T> {}
 
 impl<'a, T: Bytes> RefMut<'a, T> {
-    /// Instantiates a new RefMut.
+    /// Instantiates a new `RefMut`.
     fn new(boxed: &'a mut Box<T>) -> Self {
         Self {
             boxed: boxed.unlock_mut(),

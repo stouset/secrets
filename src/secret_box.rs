@@ -182,7 +182,7 @@ impl<T: Bytes> SecretBox<T> {
     }
 
     /// Instantiates and returns a new [`SecretBox`]. Has equivalent
-    /// semantics to [`new`][SecretBox::new], but allows the callback to
+    /// semantics to [`new`](SecretBox::new), but allows the callback to
     /// return success or failure through a [`Result`].
     ///
     /// # Errors

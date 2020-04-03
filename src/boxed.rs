@@ -126,7 +126,7 @@ impl<T: Bytes> Box<T> {
 
     /// Allows the contents of the [`Box`] to be read from. Any call to
     /// this function *must* be balanced with a call to
-    /// [`lock`][Box::lock]. Mirroring Rust's borrowing rules, there may
+    /// [`lock`](Box::lock). Mirroring Rust's borrowing rules, there may
     /// be any number of outstanding immutable unlocks (technically,
     /// limited by the max value of [`RefCount`]) *or* one mutable
     /// unlock.
@@ -137,7 +137,7 @@ impl<T: Bytes> Box<T> {
 
     /// Allows the contents of the [`Box`] to be read from and written
     /// to. Any call to this function *must* be balanced with a call to
-    /// [`lock`][Box::lock]. Mirroring Rust's borrowing rules, there may
+    /// [`lock`](Box::lock). Mirroring Rust's borrowing rules, there may
     /// be any number of outstanding immutable unlocks (technically,
     /// limited by the max value of [`RefCount`]) *or* one mutable
     /// unlock.
@@ -147,8 +147,8 @@ impl<T: Bytes> Box<T> {
     }
 
     /// Disables all access to the underlying memory. Must only be
-    /// called to precisely balance prior calls to [`unlock`][Box::unlock]
-    /// and [`unlock_mut`][Box::unlock_mut].
+    /// called to precisely balance prior calls to [`unlock`](Box::unlock)
+    /// and [`unlock_mut`](Box::unlock_mut).
     ///
     /// Calling this method in excess of the number of outstanding
     /// unlocks will result in a runtime panic. Omitting a call to this
