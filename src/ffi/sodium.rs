@@ -75,6 +75,7 @@ pub(crate) fn init() -> bool {
             // This functionality exists only on UNIX systems.
             #[cfg(unix)]
             #[cfg(any(profile = "release", profile = "coverage"))]
+            #[cfg(not(feature = "allow-coredumps"))]
             {
                 failure |= libc::setrlimit(libc::RLIMIT_CORE, &libc::rlimit {
                     rlim_cur: 0,

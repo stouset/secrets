@@ -11,6 +11,13 @@
 //! allocation, an underflow canary (to catch underflows before a
 //! guard page), and are zeroed out when freed.
 //!
+//! # Core dumps
+//!
+//! This library explicitly disables core dumps in release builds that
+//! target UNIX systems. This is done to avoid retrival of a secret
+//! from it. You can still opt-in on allowing code dumps with
+//! `allow-coredumps` feature flag.
+//!
 //! # Example: generating crytographic keys
 //!
 //! ```

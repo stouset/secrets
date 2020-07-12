@@ -22,3 +22,6 @@ pkg-config = '0.3'
 
 [dev-dependencies]
 libsodium-sys = { version = '0.2', features = ['use-pkg-config'] }
+
+[features]
+allow-coredumps = []
