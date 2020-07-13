@@ -171,7 +171,7 @@
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::print_stdout))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::result_unwrap_used))]
+#![cfg_attr(feature = "cargo-clippy", warn(clippy::unwrap_used))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::shadow_reuse))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::shadow_same))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::unimplemented))]
@@ -180,6 +180,9 @@
 
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::must_use_candidate))]
+
+// disabled due to https://github.com/rust-lang/rust-clippy/issues/5369
+#![cfg_attr(feature = "cargo-clippy", allow(clippy::redundant_pub_crate))]
 
 // disabled due to https://github.com/rust-lang/rust/issues/69952
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::wildcard_imports))]
