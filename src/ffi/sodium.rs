@@ -5,7 +5,12 @@
 use std::mem;
 use std::sync::Once;
 
-use libc::{self, c_int, c_void, size_t};
+use libc::{self, size_t};
+use libsodium_sys::{
+    randombytes_buf, sodium_allocarray, sodium_free, sodium_init,
+    sodium_memcmp, sodium_memzero, sodium_mlock, sodium_mprotect_noaccess,
+    sodium_mprotect_readonly, sodium_mprotect_readwrite, sodium_munlock,
+};
 
 /// The global [`sync::Once`] that ensures we only perform
 /// library initialization one time.
@@ -18,25 +23,6 @@ static mut INITIALIZED: bool = false;
 #[cfg(test)]
 thread_local! {
     static FAIL: std::cell::Cell<bool> = std::cell::Cell::new(false);
-}
-
-extern "C" {
-    fn sodium_init() -> c_int;
-
-    fn sodium_allocarray(count: size_t, size: size_t) -> *mut c_void;
-    fn sodium_free(ptr: *mut c_void);
-
-    fn sodium_mlock(ptr: *mut c_void, len: size_t) -> c_int;
-    fn sodium_munlock(ptr: *mut c_void, len: size_t) -> c_int;
-
-    fn sodium_mprotect_noaccess(ptr: *mut c_void) -> c_int;
-    fn sodium_mprotect_readonly(ptr: *mut c_void) -> c_int;
-    fn sodium_mprotect_readwrite(ptr: *mut c_void) -> c_int;
-
-    fn sodium_memcmp(l: *const c_void, r: *const c_void, len: size_t) -> c_int;
-    fn sodium_memzero(ptr: *mut c_void, len: size_t);
-
-    fn randombytes_buf(ptr: *mut c_void, len: size_t);
 }
 
 #[cfg(test)]
