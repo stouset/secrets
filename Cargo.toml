@@ -15,13 +15,15 @@ readme        = "README.md"
 keywords = [ "crypto", "cryptography", "allocator" ]
 
 [dependencies]
-libc = '0'
+libc          = '0'
+libsodium-sys = { version = '0.2', optional = true }
 
 [build-dependencies]
 pkg-config = '0.3'
 
 [dev-dependencies]
-libsodium-sys = { version = '0.2', features = ['use-pkg-config'] }
+libsodium-sys = '0.2'
 
 [features]
-allow-coredumps = []
+allow-coredumps   = []
+use-libsodium-sys = ["libsodium-sys"]

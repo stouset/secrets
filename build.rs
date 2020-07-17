@@ -1,4 +1,5 @@
-use pkg_config::{Config as PkgConfig, Library, Error};
+#[cfg(not(feature = "use-libsodium-sys"))]
+use pkg_config::{Config as PkgConfig, Error};
 
 use std::env;
 use std::fmt;
@@ -62,7 +63,13 @@ fn main() {
     };
 }
 
-fn link(name: &str, version: &str) -> Option<Library> {
+#[cfg(feature = "use-libsodium-sys")]
+fn link(_name: &str, _version: &str) -> Option<()> {
+    Some(())
+}
+
+#[cfg(not(feature = "use-libsodium-sys"))]
+fn link(name: &str, version: &str) -> Option<()> {
     let library = PkgConfig::new()
         .env_metadata(true)
         .atleast_version(version)
@@ -93,7 +100,7 @@ fn link(name: &str, version: &str) -> Option<Library> {
         },
         Err(Error::EnvNoPkgConfig(_)) => (),
         Err(err)                      => panic!("failed to link against {}: {}", name, err),
-        Ok(lib)                       => return Some(lib),
+        Ok(_)                         => return Some(()),
     };
 
     None
