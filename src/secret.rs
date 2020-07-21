@@ -118,7 +118,7 @@ impl<T: Bytes> Secret<T> {
             data: T::uninitialized(),
         };
 
-        if unsafe { !sodium::mlock(&secret.data) } {
+        if unsafe { !sodium::mlock(&mut secret.data) } {
             panic!("secrets: unable to mlock memory for a Secret");
         };
 
@@ -196,7 +196,7 @@ impl<T: Bytes> Drop for Secret<T> {
     /// Ensures that the [`Secret`]'s underlying memory is `munlock`ed
     /// and zeroed when it leaves scope.
     fn drop(&mut self) {
-        if unsafe { !sodium::munlock(&self.data) } {
+        if unsafe { !sodium::munlock(&mut self.data) } {
             // [`Drop::drop`] is called during stack unwinding, so we
             // may be in a panic already.
             if !thread::panicking() {

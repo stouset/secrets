@@ -111,7 +111,7 @@ pub(crate) unsafe fn free<T>(ptr: *mut T) {
 }
 
 /// Calls the platform's underlying `mlock(2)` implementation.
-pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
+pub(crate) unsafe fn mlock<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
@@ -119,7 +119,7 @@ pub(crate) unsafe fn mlock<T>(ptr: *const T) -> bool {
 }
 
 /// Calls the platform's underlying `munlock(2)` implementation.
-pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
+pub(crate) unsafe fn munlock<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
@@ -130,7 +130,7 @@ pub(crate) unsafe fn munlock<T>(ptr: *const T) -> bool {
 /// memory to `PROT_NONE`. This must be used in lieu of a raw call to
 /// `mprotect` which is unaware of the specific allocation pattern used
 /// by libsodium.
-pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
+pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
@@ -141,7 +141,7 @@ pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *const T) -> bool {
 /// memory to `PROT_READ`. This must be used in lieu of a raw call to
 /// `mprotect` which is unaware of the specific allocation pattern used
 /// by libsodium.
-pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
+pub(crate) unsafe fn mprotect_readonly<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
@@ -152,7 +152,7 @@ pub(crate) unsafe fn mprotect_readonly<T>(ptr: *const T) -> bool {
 /// memory to `PROT_WRITE`. This must be used in lieu of a raw call to
 /// `mprotect` which is unaware of the specific allocation pattern used
 /// by libsodium.
-pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *const T) -> bool {
+pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
