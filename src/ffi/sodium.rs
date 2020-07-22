@@ -210,8 +210,6 @@ pub(crate) fn memrandom(bytes: &mut [u8]) {
     unsafe { randombytes_buf(bytes.as_mut_ptr() as *mut _, bytes.len()) }
 }
 
-// LCOV_EXCL_START
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -236,5 +234,3 @@ mod test {
         assert!(!memcmp(&c, &a));
     }
 }
-
-// LCOV_EXCL_STOP

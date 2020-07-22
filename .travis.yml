@@ -83,28 +83,23 @@ matrix:
     - name: coverage
       rust: stable
       os: linux
-      dist: xenial
-      sudo: required
+      dist: bionic
 
       addons:
         apt:
           packages:
-            - libcurl4-openssl-dev
-            - libdw-dev
-            - libelf-dev
-            - libiberty-dev
             - libsodium-dev
-            - binutils-dev
-            - cmake
+            - libssl-dev
 
       env:
         - COVERAGE=true
 
       before_script:
         - rustup update
-        - cargo install cargo-update || echo "cargo-update already installed"
-        - cargo install cargo-travis || echo "cargo-travis already installed"
+        - cargo install cargo-update    || echo "cargo-update already installed"
+        - cargo install cargo-tarpaulin || echo "cargo-tarpaulin already installed"
         - cargo install-update -a
 
       script:
-        - cargo coveralls --exclude-pattern "_ctest.rs,_ctest.c"
+        - cargo build
+        - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID --tests --no-fail-fast

@@ -483,8 +483,6 @@ fn mprotect<T>(ptr: *const T, prot: Prot) {
     }
 }
 
-// LCOV_EXCL_START
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -864,5 +862,3 @@ mod tests_proven_statements {
         let _ = boxed.as_mut_slice();
     }
 }
-
-// LCOV_EXCL_STOP
