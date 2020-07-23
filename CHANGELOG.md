@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for using `libsodium-sys` as the source of our `libsodium` C
+  bindings. Speficying `--feature use-libsodium-sys` will bypass linking with
+  `pkg-config` and rely on `libsodium-sys` to provide a suitable library to link
+  against.
+
 ### Fixed
 - Intra-rustdoc links corrected.
 

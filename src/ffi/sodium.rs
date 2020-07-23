@@ -5,7 +5,17 @@
 use std::mem;
 use std::sync::Once;
 
-use libc::{self, c_int, c_void, size_t};
+use libc::{self, size_t};
+
+#[cfg(not(feature = "use-libsodium-sys"))]
+use libc::{c_void, c_int};
+
+#[cfg(feature = "use-libsodium-sys")]
+use libsodium_sys::{
+    randombytes_buf, sodium_allocarray, sodium_free, sodium_init,
+    sodium_memcmp, sodium_memzero, sodium_mlock, sodium_mprotect_noaccess,
+    sodium_mprotect_readonly, sodium_mprotect_readwrite, sodium_munlock,
+};
 
 /// The global [`sync::Once`] that ensures we only perform
 /// library initialization one time.
@@ -20,6 +30,7 @@ thread_local! {
     static FAIL: std::cell::Cell<bool> = std::cell::Cell::new(false);
 }
 
+#[cfg(not(feature = "use-libsodium-sys"))]
 extern "C" {
     fn sodium_init() -> c_int;
 

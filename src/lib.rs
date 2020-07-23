@@ -187,7 +187,6 @@
 // disabled due to https://github.com/rust-lang/rust/issues/69952
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::wildcard_imports))]
 
-
 /// Macros for ensuring code correctness inspired by [sqlite].
 ///
 /// [sqlite]: https://www.sqlite.org/assert.html
