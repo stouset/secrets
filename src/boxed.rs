@@ -473,7 +473,7 @@ impl<T: Bytes + Zeroable> From<&mut [T]> for Box<T> {
 unsafe impl<T: Bytes + Send> Send for Box<T> {}
 
 /// Immediately changes the page protection level on `ptr` to `prot`.
-fn mprotect<T>(ptr: *const T, prot: Prot) {
+fn mprotect<T>(ptr: *mut T, prot: Prot) {
     if !match prot {
         Prot::NoAccess  => unsafe { sodium::mprotect_noaccess(ptr)  },
         Prot::ReadOnly  => unsafe { sodium::mprotect_readonly(ptr)  },
@@ -693,7 +693,7 @@ mod tests {
     #[should_panic(expected = "secrets: error setting memory protection to NoAccess")]
     fn it_detects_sodium_mprotect_failure() {
         sodium::fail();
-        mprotect(std::ptr::null::<u8>(), Prot::NoAccess);
+        mprotect(std::ptr::null_mut::<u8>(), Prot::NoAccess);
     }
 }
 
