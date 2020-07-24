@@ -109,3 +109,42 @@ unsafe impl<T: Bytes> AsContiguousBytes for [T] {
         self.as_ptr() as *mut _
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Copy, Clone)]
+    struct Byte (u8);
+
+    unsafe impl Bytes for Byte {}
+
+    #[test]
+    fn it_uninitializes_to_a_garbage_value() {
+        let b = Byte::uninitialized();
+
+        assert_eq!(b.0, GARBAGE_VALUE);
+    }
+
+    #[test]
+    fn it_reports_size_correctly() {
+        assert_eq!(<Byte as Bytes>::size(), 1);
+    }
+
+    #[test]
+    fn it_provides_ptr_access() {
+        unsafe {
+            let b = Byte(255);
+            assert_eq!(*Bytes::as_u8_ptr(&b), 255);
+        }
+    }
+
+    #[test]
+    fn it_provides_mut_ptr_access() {
+        unsafe {
+            let mut b = Byte(10);
+            *Bytes::as_mut_u8_ptr(&mut b) = 42;
+            assert_eq!(b.0, 42);
+        }
+    }
+}
