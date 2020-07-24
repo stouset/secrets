@@ -4,14 +4,14 @@ branches:
 
 os:
   - linux
-  - osx
+  # - osx
 
 language: rust
 
 rust:
   - stable
-  - beta
-  - nightly
+  # - beta
+  # - nightly
 
   # the earliest supported stable release; we depend upon
   #  * >= 1.32 for uniform module paths
@@ -38,7 +38,7 @@ env:
     - RUSTFLAGS="-A unknown-lints -D warnings"
   matrix:
     - CARGOFLAGS=""
-    - CARGOFLAGS="--release"
+    # - CARGOFLAGS="--release"
 
 before_script:
   - rustup update
