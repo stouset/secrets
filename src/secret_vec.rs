@@ -413,8 +413,6 @@ impl<T: Bytes> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
 
 impl<T: Bytes> Eq for RefMut<'_, T> {}
 
-// LCOV_EXCL_START
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -550,5 +548,3 @@ mod test {
         assert_eq!(secret_2.borrow_mut(), secret_1.borrow());
     }
 }
-
-// LCOV_EXCL_STOP

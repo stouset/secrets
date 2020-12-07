@@ -406,8 +406,6 @@ impl<T: Bytes> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
 
 impl<T: Bytes> Eq for RefMut<'_, T> {}
 
-// LCOV_EXCL_START
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -558,5 +556,3 @@ mod tests_proven_statements {
         let     _     = boxed.as_mut();
     }
 }
-
-// LCOV_EXCL_STOP

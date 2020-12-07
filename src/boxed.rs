@@ -483,8 +483,6 @@ fn mprotect<T>(ptr: *mut T, prot: Prot) {
     }
 }
 
-// LCOV_EXCL_START
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -700,12 +698,14 @@ mod tests {
 #[cfg(test)]
 mod tests_sigsegv {
     use super::*;
-    use std::process;
 
+    #[cfg(not(tarpaulin))]
     fn assert_sigsegv<F>(f: F)
     where
         F: FnOnce(),
     {
+        use std::process;
+
         unsafe {
             let pid      : libc::pid_t = libc::fork();
             let mut stat : libc::c_int = 0;
@@ -731,6 +731,10 @@ mod tests_sigsegv {
                 }
             }
         }
+    }
+
+    #[cfg(tarpaulin)]
+    fn assert_sigsegv<F>(_f: F) where F: FnOnce() {
     }
 
     #[test]
@@ -864,5 +868,3 @@ mod tests_proven_statements {
         let _ = boxed.as_mut_slice();
     }
 }
-
-// LCOV_EXCL_STOP

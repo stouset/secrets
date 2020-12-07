@@ -246,8 +246,6 @@ impl<T: Bytes> PartialEq for RefMut<'_, T> {
 
 impl<T: Bytes> Eq for RefMut<'_, T> {}
 
-// LCOV_EXCL_START
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -358,5 +356,3 @@ mod tests {
         Secret::<u8>::zero(|_| sodium::fail());
     }
 }
-
-// LCOV_EXCL_STOP
