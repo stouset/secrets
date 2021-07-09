@@ -1,4 +1,44 @@
 //! Marker traits to allow types to be contained as secrets.
+//!
+//! Example: compare two values in constant time
+//!
+//! ```rust
+//! # use secrets::traits::ConstantEq;
+//! assert!(!8u32.constant_eq(&4u32));
+//! ```
+//!
+//! Example: randomize the contents of some bytes
+//!
+//! ```rust
+//! # use secrets::traits::Randomizable;
+//! let mut bytes = [0u64; 2];
+//! bytes.randomize();
+//!
+//! assert_ne!(bytes, [0, 0])
+//! ```
+//!
+//! Example: zero out the contents of some bytes
+//!
+//! ```rust
+//! # use secrets::traits::Zeroable;
+//! let mut bytes = [1u8, 2, 3, 4];
+//! bytes.zero();
+//!
+//! assert_eq!(bytes, [0, 0, 0, 0]);
+//! ```
+//!
+//! Example: copy bytes into a target, zeroing out the original bytes
+//!
+//! ```rust
+//! # use secrets::traits::Zeroable;
+//! let mut src = [4u8; 4];
+//! let mut dst = [1u8; 4];
+//!
+//! unsafe { src.transfer(&mut dst) };
+//!
+//! assert_eq!(src, [0, 0, 0, 0]);
+//! assert_eq!(dst, [4, 4, 4, 4]);
+//! ```
 
 #![allow(unsafe_code)]
 

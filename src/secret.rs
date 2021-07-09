@@ -170,6 +170,7 @@ impl<T: Bytes + Zeroable> Secret<T> {
         F: FnOnce(RefMut<'_, T>) -> U,
     {
         Self::new(|mut s| {
+            let _ = &v; // ensure the entirety of `v` is closed over
             unsafe { v.transfer(s.borrow_mut()) };
             f(s)
         })

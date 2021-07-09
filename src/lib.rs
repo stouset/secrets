@@ -137,7 +137,7 @@
 #![warn(nonstandard_style)]
 #![warn(rust_2018_compatibility)]
 #![warn(rust_2018_idioms)]
-#![warn(rustdoc::all)]
+#![warn(rust_2021_compatibility)]
 #![warn(unused)]
 
 #![warn(bare_trait_objects)]

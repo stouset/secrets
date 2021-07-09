@@ -459,14 +459,20 @@ impl<T: Bytes + ConstantEq> PartialEq for Box<T> {
 impl<T: Bytes + Zeroable> From<&mut T> for Box<T> {
     fn from(data: &mut T) -> Self {
         // this is safe since the secret and data can never overlap
-        Self::new(1, |b| unsafe { data.transfer(b.as_mut()) })
+        Self::new(1, |b| {
+            let _ = &data; // ensure the entirety of `data` is closed over
+            unsafe { data.transfer(b.as_mut()) }
+        })
     }
 }
 
 impl<T: Bytes + Zeroable> From<&mut [T]> for Box<T> {
     fn from(data: &mut [T]) -> Self {
         // this is safe since the secret and data can never overlap
-        Self::new(data.len(), |b| unsafe { data.transfer(b.as_mut_slice()) })
+        Self::new(data.len(), |b| {
+            let _ = &data; // ensure the entirety of `data` is closed over
+            unsafe { data.transfer(b.as_mut_slice()) }
+        })
     }
 }
 
