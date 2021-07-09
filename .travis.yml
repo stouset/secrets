@@ -16,7 +16,8 @@ rust:
   # the earliest supported stable release; we depend upon
   #  * >= 1.32 for uniform module paths
   #  * >= 1.36 for MaybeUninit
-  - 1.36.0
+  #  * >= 1.51 for const generics
+  - 1.51.0
 
 dist: bionic
 
