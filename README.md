@@ -2,7 +2,7 @@ secrets
 =======
 
 [![Build Status][badge-ci]][ci]
-[![Test Coverage][badge-coverage]][coverage]
+<!-- [![Test Coverage][badge-coverage]][coverage] -->
 [![Cargo Crate][badge-package]][package]
 [![Docs][badge-docs]][docs]
 [![License][badge-license]][license]
@@ -169,14 +169,14 @@ Licensed under either of
 
 at your option.
 
-[ci]:       https://travis-ci.org/stouset/secrets
-[coverage]: https://coveralls.io/github/stouset/secrets
+[ci]:       https://github.com/stouset/secrets/actions/workflows/test.yml
+<!-- [coverage]: https://coveralls.io/github/stouset/secrets -->
 [docs]:     https://stouset.github.io/secrets
 [license]:  https://github.com/stouset/secrets/blob/master/LICENSE
 [package]:  https://crates.io/crates/secrets
 
-[badge-ci]:       https://img.shields.io/travis/stouset/secrets/master.svg
-[badge-coverage]: https://coveralls.io/repos/github/stouset/secrets/badge.svg
+[badge-ci]:       https://github.com/stouset/secrets/actions/workflows/test.yml/badge.svg
+<!-- [badge-coverage]: https://coveralls.io/repos/github/stouset/secrets/badge.svg -->
 [badge-docs]:     https://docs.rs/secrets/badge.svg
 [badge-license]:  https://img.shields.io/crates/l/secrets.svg
 [badge-package]:  https://img.shields.io/crates/v/secrets.svg

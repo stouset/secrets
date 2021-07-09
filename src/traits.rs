@@ -66,9 +66,6 @@ pub use constant_eq::ConstantEq;
 pub use randomizable::Randomizable;
 pub use zeroable::Zeroable;
 
-// perhaps not useful except as a smoke test
-unsafe impl Bytes for () {}
-
 unsafe impl Bytes for bool {}
 unsafe impl Bytes for char {}
 
@@ -90,3 +87,8 @@ unsafe impl Bytes for f32 {}
 unsafe impl Bytes for f64 {}
 
 unsafe impl<T: Bytes, const N: usize> Bytes for [T; N] {}
+
+unsafe impl                                             Bytes for ()               {}
+unsafe impl<T1: Bytes, T2: Bytes>                       Bytes for (T1, T2)         {}
+unsafe impl<T1: Bytes, T2: Bytes, T3: Bytes>            Bytes for (T1, T2, T3)     {}
+unsafe impl<T1: Bytes, T2: Bytes, T3: Bytes, T4: Bytes> Bytes for (T1, T2, T3, T4) {}
