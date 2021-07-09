@@ -1,6 +1,6 @@
-ARG IMAGE=rust:1.40
+FROM rust:latest
 
-FROM $IMAGE
+ARG TOOLCHAIN=1.40
 
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \
@@ -8,7 +8,11 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y \
         libsodium-dev
 
-RUN rustup component add clippy
+RUN --mount=type=cache,target=/tmp/cache/cargo                  \
+    --mount=type=cache,target=/tmp/cache/target,sharing=private \
+    rustup toolchain install $TOOLCHAIN && \
+    rustup default           $TOOLCHAIN && \
+    rustup component add clippy
 
 RUN     mkdir /srv/secrets
 WORKDIR /srv/secrets
@@ -25,7 +29,7 @@ RUN --mount=type=cache,target=/tmp/cache/cargo                  \
 
 ARG PROFILE=debug
 ARG RUSTFLAGS="-A warnings"
-ARG RUSTDOCFLAGS="${RUSTFLAGS}"
+ARG RUSTDOCFLAGS=""
 
 # replace the dummy application with ours
 COPY . .

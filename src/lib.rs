@@ -157,8 +157,6 @@
 #![warn(unsafe_code)]
 #![warn(variant_size_differences)]
 
-#![allow(unknown_lints)]
-
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::all))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::pedantic))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::nursery))]
