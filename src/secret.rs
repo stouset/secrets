@@ -98,6 +98,11 @@ impl<T: Bytes> Secret<T> {
     /// with a well-defined, arbitrary byte pattern, and should be
     /// initialized to something meaningful before actual use.
     ///
+    /// # Panics
+    ///
+    /// This function will panic if the underlying call to `mlock(2)`
+    /// (`VirtualLock` on windows) fails.
+    ///
     /// ```
     /// # use secrets::Secret;
     /// use std::fs::File;
@@ -200,7 +205,7 @@ impl<T: Bytes> Drop for Secret<T> {
             // [`Drop::drop`] is called during stack unwinding, so we
             // may be in a panic already.
             if !thread::panicking() {
-                panic!("secrets: unable to munlock memory for a Secret")
+                panic!("secrets: unable to munlock memory for a Secret");
             }
         };
     }

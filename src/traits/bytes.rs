@@ -46,13 +46,13 @@ pub unsafe trait Bytes: Sized + Copy {
     /// Returns a `*const u8` pointer to the beginning of the data.
     #[allow(trivial_casts)] // the cast is actually required
     fn as_u8_ptr(&self) -> *const u8 {
-        self as *const Self as *const _
+        (self as *const Self).cast()
     }
 
     /// Returns a `*mut u8` pointer to the beginning of the data.
     #[allow(trivial_casts)] // the cast is actually required
     fn as_mut_u8_ptr(&mut self) -> *mut u8 {
-        self as *mut Self as *mut _
+        (self as *mut Self).cast()
     }
 }
 
@@ -102,10 +102,10 @@ unsafe impl<T: Bytes> AsContiguousBytes for [T] {
     }
 
     fn as_u8_ptr(&self) -> *const u8 {
-        self.as_ptr() as *const _
+        self.as_ptr().cast()
     }
 
     fn as_mut_u8_ptr(&mut self) -> *mut u8 {
-        self.as_ptr() as *mut _
+        self.as_mut_ptr().cast()
     }
 }
