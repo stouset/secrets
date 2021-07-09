@@ -89,7 +89,7 @@ fn derive_subkey(
             subkey.as_mut_ptr(),
             subkey.len(),
             subkey_id,
-            context.as_ptr() as *const i8,
+            context.as_ptr().cast(),
             key.as_ptr()
         );
     }

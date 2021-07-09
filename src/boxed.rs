@@ -155,7 +155,7 @@ impl<T: Bytes> Box<T> {
     /// method and leaving an outstanding unlock will result in a
     /// runtime panic when this object is dropped.
     pub(crate) fn lock(&self) {
-        self.release()
+        self.release();
     }
 
     /// Converts the [`Box`]'s contents into a reference. This must only

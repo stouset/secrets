@@ -137,7 +137,7 @@
 #![warn(nonstandard_style)]
 #![warn(rust_2018_compatibility)]
 #![warn(rust_2018_idioms)]
-#![warn(rustdoc)]
+#![warn(rustdoc::all)]
 #![warn(unused)]
 
 #![warn(bare_trait_objects)]
@@ -176,7 +176,6 @@
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::shadow_same))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::unimplemented))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::use_debug))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::wrong_pub_self_convention))]
 
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::must_use_candidate))]
