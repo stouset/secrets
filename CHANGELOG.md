@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for additional core types
+  - bool
+  - char
+  - i8, i16, i32, i64, i128
+  - f32, f64
+- Support for arrays of all sizes via const generics
+- Support for tuples of size 2-4, with any combination of supported underlying types
+
+### Fixed
+- Various newer rust/clippy lints
+
 ## [1.1.0] 2020-07-27
 
 ### Added
