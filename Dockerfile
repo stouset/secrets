@@ -1,6 +1,13 @@
 FROM rust:latest
 
-ARG TOOLCHAIN=1.40
+# we depend upon:
+# * >= 1.32 for uniform module paths
+# * >= 1.36 for std::mem::MaybeUninit
+# * >= 1.38 for std::ptr::cast
+# * >= 1.40 for cfg(doctest) (in a dependency)
+# * >= 1.51 for const generics
+ARG TOOLCHAIN
+ENV TOOLCHAIN=${TOOLCHAIN:-1.51}
 
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \

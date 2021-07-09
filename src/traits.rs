@@ -66,38 +66,27 @@ pub use constant_eq::ConstantEq;
 pub use randomizable::Randomizable;
 pub use zeroable::Zeroable;
 
-macro_rules! impls {
-    ($($ty:ty),* ; $ns:tt) => {$(
-        impls!{prim  $ty}
-        impls!{array $ty; $ns}
-    )*};
+// perhaps not useful except as a smoke test
+unsafe impl Bytes for () {}
 
-    (prim $ty:ty) => {
-        unsafe impl Bytes for $ty {}
-    };
+unsafe impl Bytes for bool {}
+unsafe impl Bytes for char {}
 
-    (array $ty:ty; ($($n:tt)*)) => {$(
-        #[allow(trivial_casts)]
-        unsafe impl Bytes for [$ty; $n] {}
-    )*};
-}
+unsafe impl Bytes for i8    {}
+unsafe impl Bytes for i16   {}
+unsafe impl Bytes for i32   {}
+unsafe impl Bytes for i64   {}
+unsafe impl Bytes for i128  {}
+unsafe impl Bytes for isize {}
 
-impls! {
-    (), // maybe not super useful, but good as a smoke test
+unsafe impl Bytes for u8    {}
+unsafe impl Bytes for u16   {}
+unsafe impl Bytes for u32   {}
+unsafe impl Bytes for u64   {}
+unsafe impl Bytes for u128  {}
+unsafe impl Bytes for usize {}
 
-    u8, u16, u32, u64, u128; (
+unsafe impl Bytes for f32 {}
+unsafe impl Bytes for f64 {}
 
-     0  1  2  3  4  5  6  7  8  9
-    10 11 12 13 14 15 16 17 18 19
-    20 21 22 23 24 25 26 27 28 29
-    30 31 32 33 34 35 36 37 38 39
-    40 41 42 43 44 45 46 47 48 49
-    50 51 52 53 54 55 56 57 58 59
-    60 61 62 63 64
-
-    // 521-bit (8 * 65.25) keys are a thing (ECDH / ECDSA)
-    66
-
-    // "million-bit keys ought to be enough for anybody"
-    128 256 384 512 1024 2048 4096 8192
-)}
+unsafe impl<T: Bytes, const N: usize> Bytes for [T; N] {}

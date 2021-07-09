@@ -16,12 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        # we depend upon:
-        # * >= 1.32 for uniform module paths
-        # * >= 1.36 for std::mem::MaybeUninit
-        # * >= 1.38 for std::ptr::cast
-        # * >= 1.40 for cfg(doctest) (in a dependency)
-        toolchain:    ["1.40", "stable", "beta"]
+        toolchain:    ["", "stable", "beta"]
         rustflags:    ["-A warnings"]
         rustdocflags: [""]
         include:
