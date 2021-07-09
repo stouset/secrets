@@ -16,7 +16,7 @@ pub unsafe trait Zeroable: AsContiguousBytes {
     /// libsodium version is more resilient against being optimized out
     /// by a smart compiler.
     fn zero(&mut self) {
-        sodium::memzero(self.as_mut_bytes())
+        sodium::memzero(self.as_mut_bytes());
     }
 
     /// Copies all bytes from `self` into `other` before zeroing out
@@ -30,7 +30,7 @@ pub unsafe trait Zeroable: AsContiguousBytes {
         sodium::memtransfer(
             self .as_mut_bytes(),
             other.as_mut_bytes(),
-        )
+        );
     }
 }
 

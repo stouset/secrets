@@ -111,14 +111,14 @@ pub(crate) fn init() -> bool {
 /// fills that memory with garbage bytes. Callers must ensure that they
 /// call [`sodium::free`] when this memory is no longer used.
 pub(crate) unsafe fn allocarray<T>(count: usize) -> *mut T {
-    sodium_allocarray(count, mem::size_of::<T>()) as *mut _
+    sodium_allocarray(count, mem::size_of::<T>()).cast()
 }
 
 /// Releases memory acquired with [`sodium::allocarray`]. This function
 /// may panic if it detects that certain soundness and safety guarantees
 /// have been violated (e.g., an underflowing write).
 pub(crate) unsafe fn free<T>(ptr: *mut T) {
-    sodium_free(ptr as *mut _)
+    sodium_free(ptr.cast());
 }
 
 /// Calls the platform's underlying `mlock(2)` implementation.
@@ -126,7 +126,7 @@ pub(crate) unsafe fn mlock<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mlock(ptr as *mut _, mem::size_of::<T>()) == 0
+    sodium_mlock(ptr.cast(), mem::size_of::<T>()) == 0
 }
 
 /// Calls the platform's underlying `munlock(2)` implementation.
@@ -134,7 +134,7 @@ pub(crate) unsafe fn munlock<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_munlock(ptr as *mut _, mem::size_of::<T>()) == 0
+    sodium_munlock(ptr.cast(), mem::size_of::<T>()) == 0
 }
 
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
@@ -145,7 +145,7 @@ pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mprotect_noaccess(ptr as *mut _) == 0
+    sodium_mprotect_noaccess(ptr.cast()) == 0
 }
 
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
@@ -156,7 +156,7 @@ pub(crate) unsafe fn mprotect_readonly<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mprotect_readonly(ptr as *mut _) == 0
+    sodium_mprotect_readonly(ptr.cast()) == 0
 }
 
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
@@ -167,7 +167,7 @@ pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mprotect_readwrite(ptr as *mut _) == 0
+    sodium_mprotect_readwrite(ptr.cast()) == 0
 }
 
 /// Compares `l` and `r` for equality in constant time, preventing
@@ -179,8 +179,8 @@ pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
 
     unsafe {
         sodium_memcmp(
-            l.as_ptr() as *const _,
-            r.as_ptr() as *const _,
+            l.as_ptr().cast(),
+            r.as_ptr().cast(),
             r.len(),
         ) == 0
     }
@@ -213,12 +213,12 @@ pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
 
 /// Fills `bytes` with zeroes.
 pub(crate) fn memzero(bytes: &mut [u8]) {
-    unsafe { sodium_memzero(bytes.as_mut_ptr() as *mut _, bytes.len()) }
+    unsafe { sodium_memzero(bytes.as_mut_ptr().cast(), bytes.len()) }
 }
 
 /// Fills `bytes` with random bytes.
 pub(crate) fn memrandom(bytes: &mut [u8]) {
-    unsafe { randombytes_buf(bytes.as_mut_ptr() as *mut _, bytes.len()) }
+    unsafe { randombytes_buf(bytes.as_mut_ptr().cast(), bytes.len()) }
 }
 
 // LCOV_EXCL_START

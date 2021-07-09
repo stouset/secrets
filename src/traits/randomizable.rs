@@ -11,7 +11,7 @@ use crate::ffi::sodium;
 pub unsafe trait Randomizable: AsContiguousBytes {
     /// Randomizes the contents of `self`.
     fn randomize(&mut self) {
-        sodium::memrandom(self.as_mut_bytes())
+        sodium::memrandom(self.as_mut_bytes());
     }
 }
 
