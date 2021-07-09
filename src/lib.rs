@@ -137,7 +137,7 @@
 #![warn(nonstandard_style)]
 #![warn(rust_2018_compatibility)]
 #![warn(rust_2018_idioms)]
-#![warn(rustdoc::all)]
+#![warn(rust_2021_compatibility)]
 #![warn(unused)]
 
 #![warn(bare_trait_objects)]
@@ -156,6 +156,8 @@
 #![warn(unused_results)]
 #![warn(unsafe_code)]
 #![warn(variant_size_differences)]
+
+#![allow(unknown_lints)]
 
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::all))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::pedantic))]
