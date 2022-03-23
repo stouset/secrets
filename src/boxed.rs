@@ -104,11 +104,13 @@ impl<T: Bytes> Box<T> {
     }
 
     /// Returns the number of elements in the [`Box`].
+    #[allow(clippy::missing_const_for_fn)] // not usable on min supported Rust
     pub(crate) fn len(&self) -> usize {
         self.len
     }
 
     /// Returns true if the [`Box`] is empty.
+    #[allow(clippy::missing_const_for_fn)] // not usable on min supported Rust
     pub(crate) fn is_empty(&self) -> bool {
         self.len == 0
     }
@@ -249,9 +251,7 @@ impl<T: Bytes> Box<T> {
         tested!(len == 0);
         tested!(std::mem::size_of::<T>() == 0);
 
-        if !sodium::init() {
-            panic!("secrets: failed to initialize libsodium");
-        }
+        assert!(sodium::init(), "secrets: failed to initialize libsodium");
 
         // `sodium::allocarray` returns a memory location that already
         // allows r/w access

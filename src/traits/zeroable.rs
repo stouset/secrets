@@ -9,6 +9,12 @@ use crate::traits::*;
 /// The trait is marked unsafe in order to restrict implementors to
 /// types that can safely have their underlying memory set to all
 /// zeroes.
+///
+/// # Safety
+///
+/// This trait allows for overwriting a type's memory with zeros. If
+/// it is not legal to represent your type as zero bits, then your type
+/// may not implement this trait.
 pub unsafe trait Zeroable: AsContiguousBytes {
     /// Zeroes out the underlying storage.
     ///
