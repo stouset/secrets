@@ -20,6 +20,12 @@ const GARBAGE_VALUE: u8 = 0xdb;
 /// be treated as raw buckets of bytes. Any type that implements `Bytes`
 /// must not exhibit undefined behavior when its underlying bits are set
 /// to any arbitrary bit pattern.
+///
+/// # Safety
+///
+/// This function constructs a value with a fixed but garbage bit
+/// pattern. If it is not legal to represent your type as any potential
+/// series of bits, then your type may not implement this trait.
 pub unsafe trait Bytes: Sized + Copy {
     /// Returns an uninitialized value.
     ///
@@ -61,6 +67,11 @@ pub unsafe trait Bytes: Sized + Copy {
 /// compile-time. Any type that implements [`AsContiguousBytes`] must
 /// not exhibit undefined behavior when its underlying bits are set to
 /// any arbitrary bit pattern.
+///
+/// # Safety
+///
+/// This trait must *only* be implemented for types that are interpreble
+/// as `size` bytes contiguous in memory.
 pub unsafe trait AsContiguousBytes {
     /// Returns the size in bytes of `Self`.
     fn size(&self) -> usize;
