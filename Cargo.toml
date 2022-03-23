@@ -18,8 +18,11 @@ keywords = [ "crypto", "cryptography", "allocator" ]
 libc          = '0'
 libsodium-sys = { version = '0.2', optional = true }
 
-[build-dependencies]
+[target.'cfg(target_family = "unix")'.build-dependencies]
 pkg-config = '0.3'
+
+[target.'cfg(target_family = "windows")'.build-dependencies]
+vcpkg = '0.2'
 
 [dev-dependencies]
 libsodium-sys = '0.2'

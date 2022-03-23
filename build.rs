@@ -1,4 +1,4 @@
-#[cfg(not(feature = "use-libsodium-sys"))]
+#[cfg(all(not(feature = "use-libsodium-sys"), target_family = "unix"))]
 use pkg_config::{Config as PkgConfig, Error};
 
 use std::env;
@@ -68,7 +68,7 @@ fn link(_name: &str, _version: &str) -> Option<()> {
     Some(())
 }
 
-#[cfg(not(feature = "use-libsodium-sys"))]
+#[cfg(all(not(feature = "use-libsodium-sys"), target_family = "unix"))]
 fn link(name: &str, version: &str) -> Option<()> {
     let library = PkgConfig::new()
         .env_metadata(true)
@@ -104,4 +104,15 @@ fn link(name: &str, version: &str) -> Option<()> {
     };
 
     None
+}
+
+#[cfg(all(not(feature = "use-libsodium-sys"), target_family = "windows"))]
+fn link(name: &str, _version: &str) -> Option<()> {
+    match vcpkg::Config::new().emit_includes(true).find_package(name) {
+        Ok(_) => Some( () ),
+        Err(e) => {
+            println!("cargo:warning=failed to find {} in vcpkg: {}", name, e);
+            None
+        }
+    }
 }

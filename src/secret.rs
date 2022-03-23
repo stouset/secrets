@@ -203,7 +203,13 @@ impl<T: Bytes> Drop for Secret<T> {
     /// Ensures that the [`Secret`]'s underlying memory is `munlock`ed
     /// and zeroed when it leaves scope.
     fn drop(&mut self) {
-        if unsafe { !sodium::munlock(&mut self.data) } {
+        // When we call sodium_munlock on some data, it actually unlocks the entire page that
+        // contains the memory. If two locked items were on the same page, then the second one
+        // fails because it was already unlocked. On Linux, this does now throw an error. On
+        // Windows, it does. We'll ignore it for now, and provide a better fix later.
+        if unsafe { !sodium::munlock(&mut self.data) }
+            && !(cfg!(target_family = "windows")
+                && std::io::Error::last_os_error().raw_os_error().map_or(false, |c| c == 158)) {
             // [`Drop::drop`] is called during stack unwinding, so we
             // may be in a panic already.
             assert!(
@@ -341,7 +347,7 @@ mod tests {
                 format!("{{ {} bytes redacted }}", 16),
                 format!("{:?}", s),
             );
-        })
+        });
     }
 
     #[test]
