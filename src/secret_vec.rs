@@ -199,12 +199,14 @@ impl<T: Bytes> SecretVec<T> {
     }
 
     /// Returns the number of elements in the [`SecretVec`].
-    pub const fn len(&self) -> usize {
+    #[allow(clippy::missing_const_for_fn)] // not usable on min supported Rust
+    pub fn len(&self) -> usize {
         self.boxed.len()
     }
 
     /// Returns true if length of the [`SecretVec`] is zero.
-    pub const fn is_empty(&self) -> bool {
+    #[allow(clippy::missing_const_for_fn)] // not usable on min supported Rust
+    pub fn is_empty(&self) -> bool {
         self.boxed.is_empty()
     }
 

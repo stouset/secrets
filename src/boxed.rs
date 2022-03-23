@@ -104,12 +104,14 @@ impl<T: Bytes> Box<T> {
     }
 
     /// Returns the number of elements in the [`Box`].
-    pub(crate) const fn len(&self) -> usize {
+    #[allow(clippy::missing_const_for_fn)] // not usable on min supported Rust
+    pub(crate) fn len(&self) -> usize {
         self.len
     }
 
     /// Returns true if the [`Box`] is empty.
-    pub(crate) const fn is_empty(&self) -> bool {
+    #[allow(clippy::missing_const_for_fn)] // not usable on min supported Rust
+    pub(crate) fn is_empty(&self) -> bool {
         self.len == 0
     }
 
