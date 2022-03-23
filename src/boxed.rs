@@ -251,9 +251,7 @@ impl<T: Bytes> Box<T> {
         tested!(len == 0);
         tested!(std::mem::size_of::<T>() == 0);
 
-        if !sodium::init() {
-            panic!("secrets: failed to initialize libsodium");
-        }
+        assert!(sodium::init(), "secrets: failed to initialize libsodium");
 
         // `sodium::allocarray` returns a memory location that already
         // allows r/w access
