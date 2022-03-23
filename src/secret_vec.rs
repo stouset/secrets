@@ -199,12 +199,12 @@ impl<T: Bytes> SecretVec<T> {
     }
 
     /// Returns the number of elements in the [`SecretVec`].
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.boxed.len()
     }
 
     /// Returns true if length of the [`SecretVec`] is zero.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.boxed.is_empty()
     }
 

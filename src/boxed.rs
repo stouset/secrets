@@ -104,12 +104,12 @@ impl<T: Bytes> Box<T> {
     }
 
     /// Returns the number of elements in the [`Box`].
-    pub(crate) fn len(&self) -> usize {
+    pub(crate) const fn len(&self) -> usize {
         self.len
     }
 
     /// Returns true if the [`Box`] is empty.
-    pub(crate) fn is_empty(&self) -> bool {
+    pub(crate) const fn is_empty(&self) -> bool {
         self.len == 0
     }
 
