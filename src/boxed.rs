@@ -703,7 +703,9 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+// There isn't a great way to run these tests on systems that don't have a native `fork()` call, so
+// we'll just skip them for now.
+#[cfg(all(test, target_family = "unix"))]
 mod tests_sigsegv {
     use super::*;
     use std::process;
@@ -770,7 +772,7 @@ mod tests_sigsegv {
                 val.as_bytes(),
                 val.as_bytes(),
             );
-        })
+        });
     }
 }
 
