@@ -66,9 +66,6 @@ pub use constant_eq::ConstantEq;
 pub use randomizable::Randomizable;
 pub use zeroable::Zeroable;
 
-unsafe impl Bytes for bool {}
-unsafe impl Bytes for char {}
-
 unsafe impl Bytes for i8    {}
 unsafe impl Bytes for i16   {}
 unsafe impl Bytes for i32   {}
