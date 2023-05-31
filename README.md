@@ -7,7 +7,7 @@ secrets
 [![Docs][badge-docs]][docs]
 [![License][badge-license]][license]
 
-`secrets` is a library to help Rust programmers safely held cryptographic
+`secrets` is a library to help Rust programmers safely hold cryptographic
 secrets in memory.
 
 It is mostly an ergonomic wrapper around the memory-protection utilities
