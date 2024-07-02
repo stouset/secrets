@@ -139,7 +139,6 @@
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
 #![warn(unused)]
-
 #![warn(bare_trait_objects)]
 #![warn(dead_code)]
 #![warn(missing_copy_implementations)]
@@ -156,18 +155,23 @@
 #![warn(unused_results)]
 #![warn(unsafe_code)]
 #![warn(variant_size_differences)]
-
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::all))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::pedantic))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::nursery))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::clone_on_ref_ptr))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::decimal_literal_representation))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    warn(clippy::decimal_literal_representation)
+)]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::else_if_without_else))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::float_arithmetic))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::float_cmp_const))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::indexing_slicing))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::mem_forget))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::missing_docs_in_private_items))]
+#![cfg_attr(
+    feature = "cargo-clippy",
+    warn(clippy::missing_docs_in_private_items)
+)]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::print_stdout))]
@@ -176,13 +180,10 @@
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::shadow_same))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::unimplemented))]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::use_debug))]
-
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::must_use_candidate))]
-
 // disabled due to https://github.com/rust-lang/rust-clippy/issues/5369
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::redundant_pub_crate))]
-
 // disabled due to https://github.com/rust-lang/rust/issues/69952
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::wildcard_imports))]
 
@@ -239,7 +240,7 @@ mod assert {
     /// is performed at least once (and therefore the condition was
     /// tested).
     macro_rules! tested {
-        ($cond:expr)  => ()
+        ($cond:expr) => {};
     }
 }
 
@@ -249,7 +250,7 @@ mod assert {
 mod assert {
     #![allow(unused_macros)]
     macro_rules! proven {
-        ($($arg:tt)*) => ();
+        ($($arg:tt)*) => {};
     }
 
     macro_rules! always {
@@ -299,7 +300,7 @@ mod assert {
 mod assert {
     #![allow(unused_macros)]
     macro_rules! proven {
-        ($($arg:tt)*) => ();
+        ($($arg:tt)*) => {};
     }
 
     macro_rules! always {
@@ -323,7 +324,7 @@ mod assert {
     }
 
     macro_rules! tested {
-        ($cond:expr) => ();
+        ($cond:expr) => {};
     }
 }
 
@@ -348,4 +349,7 @@ pub mod traits;
 
 pub use secret::Secret;
 pub use secret_box::SecretBox;
+pub use secret_vec::ItemRef;
+pub use secret_vec::ItemRefMut;
+pub use secret_vec::IterRef;
 pub use secret_vec::SecretVec;
