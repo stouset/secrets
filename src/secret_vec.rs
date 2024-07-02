@@ -1,7 +1,9 @@
 use crate::boxed::Box;
-use crate::traits::*;
+use crate::{traits::*, Secret};
 
+use std::borrow::{Borrow, BorrowMut};
 use std::fmt::{self, Debug, Formatter};
+use std::iter::FusedIterator;
 use std::ops::{Deref, DerefMut};
 
 /// A type for protecting variable-length secrets allocated on the heap.
@@ -156,6 +158,41 @@ pub struct RefMut<'a, T: Bytes> {
     boxed: &'a mut Box<T>,
 }
 
+/// An immutable wrapper around an item in a [`SecretVec`].
+///
+/// When this wrapper is dropped, it ensures that the underlying memory
+/// is re-locked.
+pub struct ItemRef<'a, T: Bytes> {
+    /// an imutably-unlocked reference to the protected memory of a
+    /// [`SecretVec`].
+    boxed: &'a Box<T>,
+    /// A reference to an item inside the box.
+    item: &'a T,
+}
+
+/// A mutable wrapper around an item in a [`SecretVec`].
+///
+/// When this wrapper is dropped, it ensures that the underlying memory
+/// is re-locked.
+pub struct ItemRefMut<'a, T: Bytes> {
+    /// a mutably-unlocked reference to the protected memory of a
+    /// [`SecretVec`].
+    boxed: &'a Box<T>,
+    /// A reference to an item inside the box.
+    item: &'a mut T,
+}
+
+/// An iterator for [`SecretVec`] that returns [`ItemRef`].
+///
+/// When all values from the iterator are dropped, the underlying memory is
+/// re-locked.
+pub struct IterRef<'a, T: Bytes> {
+    /// Vec to be iterated through.
+    vec: &'a SecretVec<T>,
+    /// Position in Vec, protected to conceal information.
+    idx: usize,
+}
+
 impl<T: Bytes> SecretVec<T> {
     /// Instantiates and returns a new `SecretVec`.
     ///
@@ -194,8 +231,7 @@ impl<T: Bytes> SecretVec<T> {
     where
         F: FnOnce(&mut [T]) -> Result<U, E>,
     {
-        Box::try_new(1, |b| f(b.as_mut_slice()))
-            .map(|b| Self { boxed: b })
+        Box::try_new(1, |b| f(b.as_mut_slice())).map(|b| Self { boxed: b })
     }
 
     /// Returns the number of elements in the [`SecretVec`].
@@ -256,6 +292,62 @@ impl<T: Bytes> SecretVec<T> {
     /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
     pub fn borrow_mut(&mut self) -> RefMut<'_, T> {
         RefMut::new(&mut self.boxed)
+    }
+
+    /// Immutably borrows an item in the [`SecretVec`], returning a wrapper
+    /// that ensures the underlying memory is [`mprotect(2)`][mprotect]ed when
+    /// all borrowed items exit scope.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use secrets::SecretVec;
+    /// let mut secret   = SecretVec::<u8>::new(2, |s| {
+    ///     s[0] = 3;
+    ///     s[1] = 5;
+    /// });
+    ///
+    /// assert_eq!(*secret.get(0).unwrap(), 3);
+    /// assert_eq!(secret.get(2), None);
+    /// assert_eq!((*secret.get(0).unwrap(), *secret.get(1).unwrap()), (3, 5));
+    /// ```
+    ///
+    /// Note: not implemented with the standard [`Index`] trait, as it requires
+    /// returning a reference. Giving back a wrapper type is not supported.
+    ///
+    /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
+    pub fn get(&self, index: usize) -> Option<ItemRef<'_, T>> {
+        ItemRef::new(&self.boxed, index)
+    }
+
+    /// Mutably borrows an item in the [`SecretVec`], returning a wrapper
+    /// that ensures the underlying memory is [`mprotect(2)`][mprotect]ed when
+    /// all borrowed items exit scope.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use secrets::SecretVec;
+    /// let mut secret   = SecretVec::<u8>::new(2, |s| {
+    ///     s[0] = 3;
+    ///     s[1] = 5;
+    /// });
+    ///
+    /// assert_eq!(*secret.get_mut(0).unwrap(), 3);
+    /// assert_eq!(secret.get_mut(2), None);
+    ///
+    /// *secret.get_mut(1).unwrap() = 1;
+    ///
+    /// assert_eq!(*secret.get_mut(1).unwrap(), 1);
+    /// ```
+    ///
+    /// Note: not implemented with the standard [`IndexMut`] trait, as it
+    /// requires returning a reference. Giving back a wrapper type is not
+    /// supported.
+    ///
+    /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
+    pub fn get_mut(&mut self, index: usize) -> Option<ItemRefMut<'_, T>> {
+        ItemRefMut::new(&mut self.boxed, index)
     }
 }
 
@@ -415,6 +507,174 @@ impl<T: Bytes> PartialEq<Ref<'_, T>> for RefMut<'_, T> {
 
 impl<T: Bytes> Eq for RefMut<'_, T> {}
 
+/// ----- Single item representations ---- ///
+
+impl<'a, T: Bytes> ItemRef<'a, T> {
+    /// Instantiates a new `ItemRef`.
+    #[allow(clippy::shadow_reuse)]
+    fn new(boxed: &'a Box<T>, item: usize) -> Option<Self> {
+        let boxed = boxed.unlock();
+        boxed.as_slice().get(item).map_or_else(
+            || {
+                // Need to re-lock here, as item is not being created.
+                boxed.lock();
+                None
+            },
+            |item| Some(Self { boxed, item }),
+        )
+    }
+}
+
+impl<T: Bytes> Clone for ItemRef<'_, T> {
+    fn clone(&self) -> Self {
+        Self {
+            boxed: self.boxed.unlock(),
+            item: self.item,
+        }
+    }
+}
+
+impl<T: Bytes> Drop for ItemRef<'_, T> {
+    fn drop(&mut self) {
+        self.boxed.lock();
+    }
+}
+
+impl<T: Bytes> Deref for ItemRef<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.item
+    }
+}
+
+impl<T: Bytes> Debug for ItemRef<'_, T> {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
+        write!(fmt, "{{ {} bytes redacted }}", self.item.size())
+    }
+}
+
+impl<T: Bytes> PartialEq for ItemRef<'_, T> {
+    fn eq(&self, rhs: &Self) -> bool {
+        // technically we could punt to `self.boxed.eq(&other.boxed),
+        // but the handler for that performs some extra locks and
+        // unlocks which are unnecessary here since we know both sides
+        // are already unlocked
+        self.constant_eq(rhs)
+    }
+}
+
+impl<T: Bytes> Eq for ItemRef<'_, T> {}
+
+impl<'a, T: Bytes> ItemRefMut<'a, T> {
+    /// Instantiates a new `ItemRefMut`.
+    #[allow(clippy::shadow_reuse)]
+    fn new(boxed: &'a mut Box<T>, item: usize) -> Option<Self> {
+        let boxed = boxed.unlock_mut();
+
+        // Need to borrow the box immutably, for re-locking, but also borrow
+        // the box mutably to access the value inside.
+        // The mutable access to an item inside the box does not disrupt the
+        // immutable access to box state - the immutable changes to box only
+        // occur when mutable item access is dropped.
+        // The immutable access to the box state is not disrupted by mutating
+        // an item inside the box.
+        // The end effect outside of this struct is equivalent to a regular
+        // mutable borrow of the box.
+        let boxed_ptr: *mut _ = boxed;
+        let item = unsafe { &mut *boxed_ptr }.as_mut_slice().get_mut(item);
+
+        // Needs this form to solve lifetimes
+        #[allow(clippy::option_if_let_else)]
+        if let Some(item) = item {
+            Some(Self { boxed, item })
+        } else {
+            boxed.lock();
+            None
+        }
+    }
+}
+
+impl<T: Bytes> Drop for ItemRefMut<'_, T> {
+    fn drop(&mut self) {
+        self.boxed.lock();
+    }
+}
+
+impl<T: Bytes> Deref for ItemRefMut<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.item
+    }
+}
+
+impl<T: Bytes> DerefMut for ItemRefMut<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.item
+    }
+}
+
+impl<T: Bytes> Debug for ItemRefMut<'_, T> {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
+        write!(fmt, "{{ {} bytes redacted }}", self.item.size())
+    }
+}
+
+impl<T: Bytes> PartialEq for ItemRefMut<'_, T> {
+    fn eq(&self, rhs: &Self) -> bool {
+        // technically we could punt to `self.boxed.eq(&other.boxed),
+        // but the handler for that performs some extra locks and
+        // unlocks which are unnecessary here since we know both sides
+        // are already unlocked
+        self.constant_eq(rhs)
+    }
+}
+
+impl<T: Bytes> Eq for ItemRefMut<'_, T> {}
+
+impl<'a, T: Bytes> Iterator for IterRef<'a, T> {
+    type Item = ItemRef<'a, T>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx < self.vec.len() {
+            let val = self.vec.get(self.idx);
+            self.idx += 1;
+            val
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.vec.len() - self.idx;
+        (len, Some(len))
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.idx += n;
+        self.next()
+    }
+}
+
+impl<T: Bytes> ExactSizeIterator for IterRef<'_, T> {}
+impl<T: Bytes> FusedIterator for IterRef<'_, T> {}
+
+impl<'a, T: Bytes> IntoIterator for &'a SecretVec<T> {
+    type IntoIter = IterRef<'a, T>;
+    type Item = ItemRef<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IterRef { vec: self, idx: 0 }
+    }
+}
+
+impl<T: Bytes> SecretVec<T> {
+    /// Wraps `into_iter`.
+    pub fn iter(&self) -> IterRef<'_, T> {
+        self.into_iter()
+    }
+}
+
 // LCOV_EXCL_START
 
 #[cfg(test)]
@@ -438,7 +698,7 @@ mod test {
     #[test]
     fn it_allows_borrowing_immutably() {
         let secret = SecretVec::<u64>::zero(2);
-        let s      = secret.borrow();
+        let s = secret.borrow();
 
         assert_eq!(*s, [0, 0]);
     }
@@ -446,7 +706,7 @@ mod test {
     #[test]
     fn it_allows_borrowing_mutably() {
         let mut secret = SecretVec::<u64>::zero(2);
-        let mut s      = secret.borrow_mut();
+        let mut s = secret.borrow_mut();
 
         s.clone_from_slice(&[7, 1][..]);
 
@@ -504,7 +764,7 @@ mod test {
 
     #[test]
     fn it_safely_clones_immutable_references() {
-        let secret   = SecretVec::<u8>::random(4);
+        let secret = SecretVec::<u8>::random(4);
         let borrow_1 = secret.borrow();
         let borrow_2 = borrow_1.clone();
 
