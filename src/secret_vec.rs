@@ -1,7 +1,6 @@
 use crate::boxed::Box;
-use crate::{traits::*, Secret};
+use crate::traits::*;
 
-use std::borrow::{Borrow, BorrowMut};
 use std::fmt::{self, Debug, Formatter};
 use std::iter::FusedIterator;
 use std::ops::{Deref, DerefMut};
@@ -174,7 +173,7 @@ pub struct ItemRef<'a, T: Bytes> {
 ///
 /// When this wrapper is dropped, it ensures that the underlying memory
 /// is re-locked.
-pub struct ItemRefMut<'a, T: Bytes> {
+pub struct ItemMut<'a, T: Bytes> {
     /// a mutably-unlocked reference to the protected memory of a
     /// [`SecretVec`].
     boxed: &'a Box<T>,
@@ -189,6 +188,17 @@ pub struct ItemRefMut<'a, T: Bytes> {
 pub struct IterRef<'a, T: Bytes> {
     /// Vec to be iterated through.
     vec: &'a SecretVec<T>,
+    /// Position in Vec, protected to conceal information.
+    idx: usize,
+}
+
+/// An iterator for [`SecretVec`] that returns [`ItemMut`].
+///
+/// When all values from the iterator are dropped, the underlying memory is
+/// re-locked.
+pub struct IterMut<'a, T: Bytes> {
+    /// Vec to be iterated through.
+    vec: &'a mut SecretVec<T>,
     /// Position in Vec, protected to conceal information.
     idx: usize,
 }
@@ -346,8 +356,8 @@ impl<T: Bytes> SecretVec<T> {
     /// supported.
     ///
     /// [mprotect]: http://man7.org/linux/man-pages/man2/mprotect.2.html
-    pub fn get_mut(&mut self, index: usize) -> Option<ItemRefMut<'_, T>> {
-        ItemRefMut::new(&mut self.boxed, index)
+    pub fn get_mut(&mut self, index: usize) -> Option<ItemMut<'_, T>> {
+        ItemMut::new(&mut self.boxed, index)
     }
 }
 
@@ -566,8 +576,8 @@ impl<T: Bytes> PartialEq for ItemRef<'_, T> {
 
 impl<T: Bytes> Eq for ItemRef<'_, T> {}
 
-impl<'a, T: Bytes> ItemRefMut<'a, T> {
-    /// Instantiates a new `ItemRefMut`.
+impl<'a, T: Bytes> ItemMut<'a, T> {
+    /// Instantiates a new `ItemMut`.
     #[allow(clippy::shadow_reuse)]
     fn new(boxed: &'a mut Box<T>, item: usize) -> Option<Self> {
         let boxed = boxed.unlock_mut();
@@ -595,13 +605,13 @@ impl<'a, T: Bytes> ItemRefMut<'a, T> {
     }
 }
 
-impl<T: Bytes> Drop for ItemRefMut<'_, T> {
+impl<T: Bytes> Drop for ItemMut<'_, T> {
     fn drop(&mut self) {
         self.boxed.lock();
     }
 }
 
-impl<T: Bytes> Deref for ItemRefMut<'_, T> {
+impl<T: Bytes> Deref for ItemMut<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -609,19 +619,19 @@ impl<T: Bytes> Deref for ItemRefMut<'_, T> {
     }
 }
 
-impl<T: Bytes> DerefMut for ItemRefMut<'_, T> {
+impl<T: Bytes> DerefMut for ItemMut<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.item
     }
 }
 
-impl<T: Bytes> Debug for ItemRefMut<'_, T> {
+impl<T: Bytes> Debug for ItemMut<'_, T> {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
         write!(fmt, "{{ {} bytes redacted }}", self.item.size())
     }
 }
 
-impl<T: Bytes> PartialEq for ItemRefMut<'_, T> {
+impl<T: Bytes> PartialEq for ItemMut<'_, T> {
     fn eq(&self, rhs: &Self) -> bool {
         // technically we could punt to `self.boxed.eq(&other.boxed),
         // but the handler for that performs some extra locks and
@@ -631,7 +641,7 @@ impl<T: Bytes> PartialEq for ItemRefMut<'_, T> {
     }
 }
 
-impl<T: Bytes> Eq for ItemRefMut<'_, T> {}
+impl<T: Bytes> Eq for ItemMut<'_, T> {}
 
 impl<'a, T: Bytes> Iterator for IterRef<'a, T> {
     type Item = ItemRef<'a, T>;
@@ -671,6 +681,50 @@ impl<'a, T: Bytes> IntoIterator for &'a SecretVec<T> {
 impl<T: Bytes> SecretVec<T> {
     /// Wraps `into_iter`.
     pub fn iter(&self) -> IterRef<'_, T> {
+        self.into_iter()
+    }
+}
+
+impl<'a, T: Bytes> Iterator for IterMut<'a, T> {
+    type Item = ItemMut<'a, T>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx < self.vec.len() {
+            // Need to use unsafe to solve lifetimes with trait
+            let this: *mut _ = self;
+            let val = unsafe { &mut *this }.vec.get_mut(self.idx);
+            self.idx += 1;
+            val
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.vec.len() - self.idx;
+        (len, Some(len))
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.idx += n;
+        self.next()
+    }
+}
+
+impl<T: Bytes> ExactSizeIterator for IterMut<'_, T> {}
+impl<T: Bytes> FusedIterator for IterMut<'_, T> {}
+
+impl<'a, T: Bytes> IntoIterator for &'a mut SecretVec<T> {
+    type IntoIter = IterMut<'a, T>;
+    type Item = ItemMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        IterMut { vec: self, idx: 0 }
+    }
+}
+
+impl<T: Bytes> SecretVec<T> {
+    /// Wraps `into_iter`.
+    pub fn iter_mut(&mut self) -> IterMut<'_, T> {
         self.into_iter()
     }
 }

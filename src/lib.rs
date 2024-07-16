@@ -340,16 +340,13 @@ mod boxed;
 mod secret;
 
 /// Container for `SecretBox`.
-mod secret_box;
+pub mod secret_box;
 
 /// Container for `SecretVec`.
-mod secret_vec;
+pub mod secret_vec;
 
 pub mod traits;
 
 pub use secret::Secret;
 pub use secret_box::SecretBox;
-pub use secret_vec::ItemRef;
-pub use secret_vec::ItemRefMut;
-pub use secret_vec::IterRef;
 pub use secret_vec::SecretVec;
