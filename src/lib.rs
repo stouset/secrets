@@ -138,6 +138,7 @@
 #![warn(rust_2018_compatibility)]
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 #![warn(unused)]
 
 #![warn(bare_trait_objects)]

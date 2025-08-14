@@ -485,7 +485,7 @@ fn mprotect<T>(ptr: *mut T, prot: Prot) {
         Prot::ReadOnly  => unsafe { sodium::mprotect_readonly(ptr)  },
         Prot::ReadWrite => unsafe { sodium::mprotect_readwrite(ptr) },
     } {
-        panic!("secrets: error setting memory protection to {:?}", prot);
+        panic!("secrets: error setting memory protection to {prot:?}");
     }
 }
 
