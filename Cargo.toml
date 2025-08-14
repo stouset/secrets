@@ -3,6 +3,8 @@ name    = "secrets"
 version = "1.2.0"
 edition = "2024"
 
+rust-version = "1.85.0"
+
 authors     = ["Stephen Touset <stephen@touset.org>"]
 description = "Protected-access memory for cryptographic secrets"
 
