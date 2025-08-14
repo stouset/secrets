@@ -1,0 +1,27 @@
+name: Rust
+
+on: [push]
+
+jobs:
+  test:
+    name: Test ${{ profile }} build on ${{ matrix.os }} and Rust ${{ matrix.rust }}
+
+    strategy:
+      matrix:
+        os:      [ ubuntu-latest, macOS-latest, windows-latest ]
+        rust:    [ 1.36.0, stable, beta, nightly ]
+  
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v1
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ rust }}
+    - uses: actions-rs/cargo@v1
+      with:
+        command: build
+    - uses: actions-rs/cargo@v1
+      with:
+        command: test
+      
