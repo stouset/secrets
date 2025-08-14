@@ -78,6 +78,22 @@ use std::thread;
 /// ```
 ///
 /// [mlock]: http://man7.org/linux/man-pages/man2/mlock.2.html
+//
+// Aligned to the target's memory page size so that no two `Secret`s
+// can share a page; `munlock` operates on whole pages and would
+// otherwise unlock a sibling secret's memory while it is still live.
+// `repr(align)` requires a literal, so we dispatch on the target.
+// `Secret::new` asserts at runtime that the chosen alignment is at
+// least the page size reported by the OS, catching any target whose
+// real page size exceeds what this table promises.
+#[cfg_attr(any(target_arch = "x86",         target_arch   = "x86_64"), repr(align(4096)))]
+#[cfg_attr(all(target_arch = "aarch64",     target_vendor = "apple"),  repr(align(16384)))]
+#[cfg_attr(all(target_arch = "aarch64", not(target_vendor = "apple")), repr(align(65536)))]
+#[cfg_attr(not(any(
+    target_arch = "x86",
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+)),                                                                    repr(align(65536)))]
 pub struct Secret<T: Bytes> {
     /// The internal protected memory for the [`Secret`].
     data: T,
@@ -118,6 +134,14 @@ impl<T: Bytes> Secret<T> {
         F: FnOnce(RefMut<'_, T>) -> U,
     {
         tested!(size_of::<T>() == 0);
+
+        assert!(
+            align_of::<Self>() >= page_size::get(),
+            "secrets: Secret alignment ({}) is smaller than the system page size ({}); \
+             this target is not yet supported",
+            align_of::<Self>(),
+            page_size::get(),
+        );
 
         let mut secret = Self {
             data: T::uninitialized(),
@@ -203,13 +227,7 @@ impl<T: Bytes> Drop for Secret<T> {
     /// Ensures that the [`Secret`]'s underlying memory is `munlock`ed
     /// and zeroed when it leaves scope.
     fn drop(&mut self) {
-        // When we call sodium_munlock on some data, it actually unlocks the entire page that
-        // contains the memory. If two locked items were on the same page, then the second one
-        // fails because it was already unlocked. On Linux, this does now throw an error. On
-        // Windows, it does. We'll ignore it for now, and provide a better fix later.
-        if unsafe { !sodium::munlock(&raw mut self.data) }
-            && !(cfg!(target_family = "windows")
-                && (std::io::Error::last_os_error().raw_os_error() == Some(158))) {
+        if unsafe { !sodium::munlock(&raw mut self.data) } {
             // [`Drop::drop`] is called during stack unwinding, so we
             // may be in a panic already.
             assert!(
@@ -270,6 +288,27 @@ mod tests {
     #[test]
     fn it_defaults_to_garbage_data() {
         Secret::<u16>::new(|s| assert_eq!(*s, 0xdbdb));
+    }
+
+    #[test]
+    fn it_aligns_to_at_least_the_page_size() {
+        let page = page_size::get();
+        assert!(align_of::<Secret<u8>>()       >= page);
+        assert!(align_of::<Secret<[u8; 32]>>() >= page);
+        assert!(align_of::<Secret<[u64; 4]>>() >= page);
+    }
+
+    #[test]
+    fn it_does_not_share_a_page_between_secrets() {
+        // Regression test for #109: two stack-allocated `Secret`s
+        // could land on the same page, so dropping one would `munlock`
+        // the other's still-live memory.
+        Secret::<u64>::zero(|a| {
+            let addr_a = &raw const *a as usize;
+            let addr_b = Secret::<u64>::zero(|b| &raw const *b as usize);
+            let page   = page_size::get();
+            assert_ne!(addr_a / page, addr_b / page);
+        });
     }
 
     #[test]
