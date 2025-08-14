@@ -62,6 +62,16 @@ fn main() {
         // naïvely
         println!("cargo:rustc-link-lib=dylib=sodium");
     };
+
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let out_path = std::path::Path::new(&out_dir).join("secret_pad.rs");
+
+    // probe the page size of the current system and write it out so we
+    // can align `Secret` using it
+    std::fs::write(out_path, format!(
+        "#[repr(align({}))]\npub(crate) struct Padding();",
+        page_size::get()
+    )).unwrap();
 }
 
 #[cfg(feature = "use-libsodium-sys")]
