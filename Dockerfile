@@ -6,8 +6,9 @@ FROM rust:latest
 # * >= 1.38 for std::ptr::cast
 # * >= 1.40 for cfg(doctest) (in a dependency)
 # * >= 1.51 for const generics
+# * >= 1.85 for Rust 2024 edition
 ARG TOOLCHAIN
-ENV TOOLCHAIN=${TOOLCHAIN:-1.51}
+ENV TOOLCHAIN=${TOOLCHAIN:-1.85}
 
 RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update && \

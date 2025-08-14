@@ -138,6 +138,7 @@
 #![warn(rust_2018_compatibility)]
 #![warn(rust_2018_idioms)]
 #![warn(rust_2021_compatibility)]
+#![warn(rust_2024_compatibility)]
 #![warn(unused)]
 
 #![warn(bare_trait_objects)]
@@ -157,34 +158,30 @@
 #![warn(unsafe_code)]
 #![warn(variant_size_differences)]
 
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::all))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::pedantic))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::nursery))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::clone_on_ref_ptr))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::decimal_literal_representation))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::else_if_without_else))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::float_arithmetic))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::float_cmp_const))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::indexing_slicing))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::mem_forget))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::missing_docs_in_private_items))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::multiple_inherent_impl))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::print_stdout))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::unwrap_used))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::shadow_reuse))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::shadow_same))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::unimplemented))]
-#![cfg_attr(feature = "cargo-clippy", warn(clippy::use_debug))]
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::nursery)]
+#![warn(clippy::clone_on_ref_ptr)]
+#![warn(clippy::decimal_literal_representation)]
+#![warn(clippy::else_if_without_else)]
+#![warn(clippy::float_arithmetic)]
+#![warn(clippy::float_cmp_const)]
+#![warn(clippy::indexing_slicing)]
+#![warn(clippy::mem_forget)]
+#![warn(clippy::missing_docs_in_private_items)]
+#![warn(clippy::multiple_inherent_impl)]
+#![warn(clippy::print_stdout)]
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::shadow_reuse)]
+#![warn(clippy::shadow_same)]
+#![warn(clippy::unimplemented)]
+#![warn(clippy::use_debug)]
 
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::module_name_repetitions))]
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::must_use_candidate))]
-
-// disabled due to https://github.com/rust-lang/rust-clippy/issues/5369
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::redundant_pub_crate))]
-
-// disabled due to https://github.com/rust-lang/rust/issues/69952
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::wildcard_imports))]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::redundant_pub_crate)]
+#![allow(clippy::too_long_first_doc_paragraph)]
+#![allow(clippy::wildcard_imports)]
 
 /// Macros for ensuring code correctness inspired by [sqlite].
 ///
@@ -192,7 +189,9 @@
 #[cfg(profile = "debug")]
 #[macro_use]
 mod assert {
+    // Some of these macros aren't used yet, but we still want them!
     #![allow(unused_macros)]
+    #![allow(unused_macro_rules)]
 
     /// Results in an `assert!` in debug builds but is a no-op in
     /// coverage and release builds, since we have extraordinarily high

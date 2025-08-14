@@ -112,19 +112,19 @@ impl<T: Bytes> Secret<T> {
     ///     File::open("/dev/urandom")?.read_exact(&mut s[..])
     /// });
     /// ```
-    #[cfg_attr(feature = "cargo-clippy", allow(clippy::new_ret_no_self))]
+    #[allow(clippy::new_ret_no_self)]
     pub fn new<F, U>(f: F) -> U
     where
         F: FnOnce(RefMut<'_, T>) -> U,
     {
-        tested!(std::mem::size_of::<T>() == 0);
+        tested!(size_of::<T>() == 0);
 
         let mut secret = Self {
             data: T::uninitialized(),
         };
 
         assert!(
-            unsafe { sodium::mlock(&mut secret.data) },
+            unsafe { sodium::mlock(&raw mut secret.data) },
             "secrets: unable to mlock memory for a Secret"
         );
 
@@ -207,22 +207,22 @@ impl<T: Bytes> Drop for Secret<T> {
         // contains the memory. If two locked items were on the same page, then the second one
         // fails because it was already unlocked. On Linux, this does now throw an error. On
         // Windows, it does. We'll ignore it for now, and provide a better fix later.
-        if unsafe { !sodium::munlock(&mut self.data) }
+        if unsafe { !sodium::munlock(&raw mut self.data) }
             && !(cfg!(target_family = "windows")
-                && std::io::Error::last_os_error().raw_os_error().map_or(false, |c| c == 158)) {
+                && (std::io::Error::last_os_error().raw_os_error() == Some(158))) {
             // [`Drop::drop`] is called during stack unwinding, so we
             // may be in a panic already.
             assert!(
                 thread::panicking(),
                 "secrets: unable to munlock memory for a Secret"
             );
-        };
+        }
     }
 }
 
 impl<'a, T: Bytes> RefMut<'a, T> {
     /// Instantiates a new `RefMut`.
-    pub(crate) fn new(data: &'a mut T) -> Self {
+    pub(crate) const fn new(data: &'a mut T) -> Self {
         Self { data }
     }
 }
@@ -353,7 +353,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "secrets: a Secret may not be cloned")]
     fn it_panics_when_cloned() {
-        #[cfg_attr(feature = "cargo-clippy", allow(clippy::redundant_clone))]
+        #[allow(clippy::redundant_clone)]
         Secret::<u16>::zero(|s| {
             let _ = s.clone();
         });

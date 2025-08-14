@@ -2,7 +2,6 @@
 
 #![allow(unsafe_code)]
 
-use std::mem;
 use std::sync::Once;
 
 use libc::{self, size_t};
@@ -31,7 +30,7 @@ thread_local! {
 }
 
 #[cfg(not(feature = "use-libsodium-sys"))]
-extern "C" {
+unsafe extern "C" {
     fn sodium_init() -> c_int;
 
     fn sodium_allocarray(count: size_t, size: size_t) -> *mut c_void;
@@ -111,14 +110,14 @@ pub(crate) fn init() -> bool {
 /// fills that memory with garbage bytes. Callers must ensure that they
 /// call [`sodium::free`] when this memory is no longer used.
 pub(crate) unsafe fn allocarray<T>(count: usize) -> *mut T {
-    sodium_allocarray(count, mem::size_of::<T>()).cast()
+    unsafe { sodium_allocarray(count, size_of::<T>()).cast() }
 }
 
 /// Releases memory acquired with [`sodium::allocarray`]. This function
 /// may panic if it detects that certain soundness and safety guarantees
 /// have been violated (e.g., an underflowing write).
 pub(crate) unsafe fn free<T>(ptr: *mut T) {
-    sodium_free(ptr.cast());
+    unsafe { sodium_free(ptr.cast()) };
 }
 
 /// Calls the platform's underlying `mlock(2)` implementation.
@@ -126,7 +125,7 @@ pub(crate) unsafe fn mlock<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mlock(ptr.cast(), mem::size_of::<T>()) == 0
+    unsafe { sodium_mlock(ptr.cast(), size_of::<T>()) == 0 }
 }
 
 /// Calls the platform's underlying `munlock(2)` implementation.
@@ -134,7 +133,7 @@ pub(crate) unsafe fn munlock<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_munlock(ptr.cast(), mem::size_of::<T>()) == 0
+    unsafe { sodium_munlock(ptr.cast(), size_of::<T>()) == 0 }
 }
 
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
@@ -145,7 +144,7 @@ pub(crate) unsafe fn mprotect_noaccess<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mprotect_noaccess(ptr.cast()) == 0
+    unsafe { sodium_mprotect_noaccess(ptr.cast()) == 0 }
 }
 
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
@@ -156,7 +155,7 @@ pub(crate) unsafe fn mprotect_readonly<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mprotect_readonly(ptr.cast()) == 0
+    unsafe { sodium_mprotect_readonly(ptr.cast()) == 0 }
 }
 
 /// Sets the page protection level of [`sodium::allocarray`]-allocated
@@ -167,7 +166,7 @@ pub(crate) unsafe fn mprotect_readwrite<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mprotect_readwrite(ptr.cast()) == 0
+    unsafe { sodium_mprotect_readwrite(ptr.cast()) == 0 }
 }
 
 /// Compares `l` and `r` for equality in constant time, preventing
@@ -202,12 +201,14 @@ pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
     // this is proven since in safe rust, two mutable slices may not
     // overlap with one-another
     proven!(
-        (src.as_ptr() < dst.as_ptr() && src.as_ptr().add(src.len()) <= dst.as_ptr()) ||
-        (dst.as_ptr() < src.as_ptr() && dst.as_ptr().add(dst.len()) <= src.as_ptr()),
+        unsafe {
+            (src.as_ptr() < dst.as_ptr() && src.as_ptr().add(src.len()) <= dst.as_ptr()) ||
+            (dst.as_ptr() < src.as_ptr() && dst.as_ptr().add(dst.len()) <= src.as_ptr())
+        },
         "secrets: may not transfer overlapping slices into one-another"
     );
 
-    src.as_ptr().copy_to_nonoverlapping(dst.as_mut_ptr(), src.len());
+    unsafe { src.as_ptr().copy_to_nonoverlapping(dst.as_mut_ptr(), src.len()) }; 
     memzero(src);
 }
 

@@ -33,9 +33,10 @@ impl Profile {
             }
         };
 
-        println!("cargo:rerun-if-env-changed=COVERAGE");
-        println!("cargo:rerun-if-env-changed=PROFILE");
-        println!("cargo:rustc-cfg=profile=\"{}\"", profile);
+        println!("cargo::rerun-if-env-changed=COVERAGE");
+        println!("cargo::rerun-if-env-changed=PROFILE");
+        println!("cargo::rustc-check-cfg=cfg(profile, values(\"coverage\", \"debug\", \"release\"))");
+        println!("cargo::rustc-cfg=profile=\"{}\"", profile);
 
         profile
     }
