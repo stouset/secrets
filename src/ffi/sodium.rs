@@ -190,7 +190,7 @@ pub(crate) fn memcmp(l: &[u8], r: &[u8]) -> bool {
 /// `src`.
 pub(crate) unsafe fn memtransfer(src: &mut [u8], dst: &mut [u8]) {
     never!(src.len() > dst.len(),
-        "secrets: may not transfer a smaller `src` into a larger `dst`");
+        "secrets: may not transfer a larger `src` into a smaller `dst`");
 
     // Based on the requirements of `ptr::copy_nonoverlapping` and the
     // that we're going to clobber `src`, we ensure that either
