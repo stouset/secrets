@@ -9,6 +9,8 @@ use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::thread;
 
+include!(concat!(env!("OUT_DIR"), "/secret_pad.rs"));
+
 /// A type for protecting secrets allocated on the stack.
 ///
 /// Stack-allocated secrets have distinct security needs from
@@ -78,9 +80,13 @@ use std::thread;
 /// ```
 ///
 /// [mlock]: http://man7.org/linux/man-pages/man2/mlock.2.html
+
 pub struct Secret<T: Bytes> {
     /// The internal protected memory for the [`Secret`].
     data: T,
+
+    /// Additional padding to ensure we occupy a dedicated page.
+    _pad: Padding,
 }
 
 /// A mutable [`Deref`]-wrapper around a [`Secret`]'s internal
@@ -121,6 +127,7 @@ impl<T: Bytes> Secret<T> {
 
         let mut secret = Self {
             data: T::uninitialized(),
+            _pad: Padding(),
         };
 
         assert!(
@@ -203,13 +210,7 @@ impl<T: Bytes> Drop for Secret<T> {
     /// Ensures that the [`Secret`]'s underlying memory is `munlock`ed
     /// and zeroed when it leaves scope.
     fn drop(&mut self) {
-        // When we call sodium_munlock on some data, it actually unlocks the entire page that
-        // contains the memory. If two locked items were on the same page, then the second one
-        // fails because it was already unlocked. On Linux, this does now throw an error. On
-        // Windows, it does. We'll ignore it for now, and provide a better fix later.
-        if unsafe { !sodium::munlock(&raw mut self.data) }
-            && !(cfg!(target_family = "windows")
-                && (std::io::Error::last_os_error().raw_os_error() == Some(158))) {
+        if unsafe { !sodium::munlock(&raw mut self.data) } {
             // [`Drop::drop`] is called during stack unwinding, so we
             // may be in a panic already.
             assert!(
