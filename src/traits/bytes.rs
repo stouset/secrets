@@ -1,4 +1,4 @@
-use std::mem::{self, MaybeUninit};
+use std::mem::MaybeUninit;
 use std::slice;
 
 /// Marker value for uninitialized data.
@@ -17,9 +17,11 @@ use std::slice;
 const GARBAGE_VALUE: u8 = 0xdb;
 
 /// A marker trait for types whose size is known at compile time and can
-/// be treated as raw buckets of bytes. Any type that implements `Bytes`
-/// must not exhibit undefined behavior when its underlying bits are set
-/// to any arbitrary bit pattern.
+/// be treated as raw buckets of bytes.
+///
+/// Any type that implements `Bytes`/ must not exhibit undefined
+/// behavior when its underlying bits are set to any arbitrary bit
+/// pattern.
 ///
 /// # Safety
 ///
@@ -46,27 +48,29 @@ pub unsafe trait Bytes: Sized + Copy {
 
     /// Returns the size in bytes of `Self`.
     fn size() -> usize {
-        mem::size_of::<Self>()
+        size_of::<Self>()
     }
 
     /// Returns a `*const u8` pointer to the beginning of the data.
     #[allow(trivial_casts)] // the cast is actually required
     fn as_u8_ptr(&self) -> *const u8 {
-        (self as *const Self).cast()
+        std::ptr::from_ref::<Self>(self).cast()
     }
 
     /// Returns a `*mut u8` pointer to the beginning of the data.
     #[allow(trivial_casts)] // the cast is actually required
     fn as_mut_u8_ptr(&mut self) -> *mut u8 {
-        (self as *mut Self).cast()
+        std::ptr::from_mut::<Self>(self).cast()
     }
 }
 
 /// Marker trait for types who are intrepretable as a series of
-/// contiguous bytes, where the exact size may not be known at
-/// compile-time. Any type that implements [`AsContiguousBytes`] must
-/// not exhibit undefined behavior when its underlying bits are set to
-/// any arbitrary bit pattern.
+/// contiguous byte, where the exact size may not be known at
+/// compile-time.
+///
+/// Any type that implements [`AsContiguousBytes`] must not exhibit
+/// undefined behavior when its underlying bits are set to any arbitrary
+/// bit pattern.
 ///
 /// # Safety
 ///

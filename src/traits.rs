@@ -44,7 +44,7 @@
 
 // `clippy` currently warns when trait functions could be `const fn`s, but this
 // is not actually allowed by the language
-#![cfg_attr(feature = "cargo-clippy", allow(clippy::missing_const_for_fn))]
+#![allow(clippy::missing_const_for_fn)]
 
 /// Traits for types that are considered buckets of bytes.
 mod bytes;

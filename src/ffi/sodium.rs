@@ -2,7 +2,6 @@
 
 #![allow(unsafe_code)]
 
-use std::mem;
 use std::sync::Once;
 
 use libc::{self, size_t};
@@ -111,7 +110,7 @@ pub(crate) fn init() -> bool {
 /// fills that memory with garbage bytes. Callers must ensure that they
 /// call [`sodium::free`] when this memory is no longer used.
 pub(crate) unsafe fn allocarray<T>(count: usize) -> *mut T {
-    sodium_allocarray(count, mem::size_of::<T>()).cast()
+    sodium_allocarray(count, size_of::<T>()).cast()
 }
 
 /// Releases memory acquired with [`sodium::allocarray`]. This function
@@ -126,7 +125,7 @@ pub(crate) unsafe fn mlock<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_mlock(ptr.cast(), mem::size_of::<T>()) == 0
+    sodium_mlock(ptr.cast(), size_of::<T>()) == 0
 }
 
 /// Calls the platform's underlying `munlock(2)` implementation.
@@ -134,7 +133,7 @@ pub(crate) unsafe fn munlock<T>(ptr: *mut T) -> bool {
     #[cfg(test)]
     { if FAIL.with(|f| f.replace(false)) { return false }; let _x = 0; };
 
-    sodium_munlock(ptr.cast(), mem::size_of::<T>()) == 0
+    sodium_munlock(ptr.cast(), size_of::<T>()) == 0
 }
 
 /// Sets the page protection level of [`sodium::allocarray`]-allocated

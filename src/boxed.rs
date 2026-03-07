@@ -72,7 +72,7 @@ impl<T: Bytes> Box<T> {
     {
         let mut boxed = Self::new_unlocked(len);
 
-        proven!(boxed.ptr != std::ptr::NonNull::dangling());
+        proven!(boxed.ptr != NonNull::dangling());
         proven!(boxed.len == len);
 
         init(&mut boxed);
@@ -93,7 +93,7 @@ impl<T: Bytes> Box<T> {
     {
         let mut boxed = Self::new_unlocked(len);
 
-        proven!(boxed.ptr != std::ptr::NonNull::dangling());
+        proven!(boxed.ptr != NonNull::dangling());
         proven!(boxed.len == len);
 
         let result = init(&mut boxed);
@@ -332,7 +332,7 @@ impl<T: Bytes> Box<T> {
             Some(v)                  => self.refs.set(v),
             None if self.is_locked() => panic!("secrets: out-of-order retain/release detected"),
             None                     => panic!("secrets: retained too many times"),
-        };
+        }
     }
 
     /// Removes one outsdanding retain, and changes the memory

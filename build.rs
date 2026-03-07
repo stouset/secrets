@@ -23,7 +23,7 @@ impl Profile {
 
             // unknown profile
             (false, Ok(profile)) => {
-                println!("cargo:warning=\"unknown profile {}, defaulting to debug\"", profile);
+                println!("cargo::warning=\"unknown profile {}, defaulting to debug\"", profile);
                 Profile::Debug
             },
 
@@ -33,9 +33,10 @@ impl Profile {
             }
         };
 
-        println!("cargo:rerun-if-env-changed=COVERAGE");
-        println!("cargo:rerun-if-env-changed=PROFILE");
-        println!("cargo:rustc-cfg=profile=\"{}\"", profile);
+        println!("cargo::rerun-if-env-changed=COVERAGE");
+        println!("cargo::rerun-if-env-changed=PROFILE");
+        println!("cargo::rustc-check-cfg=cfg(profile, values(\"debug\", \"coverage\", \"release\"))");
+        println!("cargo::rustc-cfg=profile=\"{}\"", profile);
 
         profile
     }
@@ -59,7 +60,7 @@ fn main() {
     if link("libsodium", "1.0.8").is_none() {
         // if pkg-config is disabled or failed to run, try and link
         // naïvely
-        println!("cargo:rustc-link-lib=dylib=sodium");
+        println!("cargo::rustc-link-lib=dylib=sodium");
     };
 }
 
@@ -95,8 +96,8 @@ fn link(name: &str, version: &str) -> Option<()> {
                 }
             }).collect::<Vec<&str>>().join(" ");
 
-            println!("cargo:warning=failed to run `{}`; is pkg-config in your PATH?", cmd);
-            println!("cargo:warning=using default linker options");
+            println!("cargo::warning=failed to run `{}`; is pkg-config in your PATH?", cmd);
+            println!("cargo::warning=using default linker options");
         },
         Err(Error::EnvNoPkgConfig(_)) => (),
         Err(err)                      => panic!("failed to link against {}: {}", name, err),
@@ -111,7 +112,7 @@ fn link(name: &str, _version: &str) -> Option<()> {
     match vcpkg::Config::new().emit_includes(true).find_package(name) {
         Ok(_) => Some( () ),
         Err(e) => {
-            println!("cargo:warning=failed to find {} in vcpkg: {}", name, e);
+            println!("cargo::warning=failed to find {} in vcpkg: {}", name, e);
             None
         }
     }
