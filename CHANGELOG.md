@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] 2026-04-13
+
+### Security
+- [#109](https://github.com/stouset/secrets/issues/109): Two `Secret`s can no
+  longer accidentally occupy the same page, which would cause the unlocking of
+  one to unintentionally unlock the other.
+
+### Soundness
+- [#100](https://github.com/stouset/secrets/issues/100): Tuple types may contain
+  padding and so cannot safely implement the `Bytes` trait. This trait has been
+  removed from tuples.
+- [#100](https://github.com/stouset/secrets/issues/100): `bool` and `char` 
+  cannot contain arbitrary byte sequences, and have similarly had their `Bytes`
+  implementation removed.
+
+### Fixed
+- [#115](https://github.com/stouset/secrets/issues/115): `SecretVec::try_new` now
+  accepts a length parameter as originally intended.  This is technically
+  backwards-incompatible, but it is unlikely anyone in the wild was relying on 
+  this since it would have been noticed immediately.
+
 ## [1.2.0] 2022-03-26
 
 ### Added
