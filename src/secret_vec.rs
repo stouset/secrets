@@ -190,11 +190,11 @@ impl<T: Bytes> SecretVec<T> {
     /// # Errors
     ///
     /// Returns `Err` only if the user-provided callback does.
-    pub fn try_new<U, E, F>(f: F) -> Result<Self, E>
+    pub fn try_new<U, E, F>(len: usize, f: F) -> Result<Self, E>
     where
         F: FnOnce(&mut [T]) -> Result<U, E>,
     {
-        Box::try_new(1, |b| f(b.as_mut_slice()))
+        Box::try_new(len, |b| f(b.as_mut_slice()))
             .map(|b| Self { boxed: b })
     }
 
@@ -432,7 +432,7 @@ mod test {
 
     #[test]
     fn it_allows_failing_initialization() {
-        assert!(SecretVec::<u8>::try_new(|_| Ok::<(), ()>(())).is_ok());
+        assert!(SecretVec::<u8>::try_new(8, |_| Ok::<(), ()>(())).is_ok());
     }
 
     #[test]
