@@ -171,7 +171,7 @@ at your option.
 
 [ci]:       https://github.com/stouset/secrets/actions/workflows/test.yml
 <!-- [coverage]: https://coveralls.io/github/stouset/secrets -->
-[docs]:     https://stouset.github.io/secrets
+[docs]:     https://docs.rs/secrets/latest/secrets/
 [license]:  https://github.com/stouset/secrets/blob/master/LICENSE
 [package]:  https://crates.io/crates/secrets
 
